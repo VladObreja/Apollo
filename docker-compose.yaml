@@ -113,6 +113,7 @@ services:
   lightrag:
     image: ghcr.io/hkuds/lightrag:latest
     container_name: apollo-lightrag
+    command: ["python3", "-m", "lightrag.api.lightrag_server", "--auto-scan-at-startup"]
     ports:
       - "9621:9621"
     volumes:
@@ -120,10 +121,13 @@ services:
       - C:/Apollo/Vault/Inputs:/app/data/inputs
     environment:
       - LLM_BINDING=ollama
-      - OLLAMA_HOST=http://ollama:11434
+      - LLM_BINDING_HOST=http://ollama:11434
+      - LLM_MODEL=Apollo-Architect  # Or your Strategist model name
+      - EMBEDDING_BINDING=ollama
+      - EMBEDDING_BINDING_HOST=http://ollama:11434
+      - EMBEDDING_MODEL=nomic-embed-text # REQUIRED: You must pull this model
     depends_on:
       - ollama
-
   # Scout: Crawl4AI (Anti-Bot Web Scraper)
   crawl4ai:
     image: unclecode/crawl4ai:latest
