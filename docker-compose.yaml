@@ -108,3 +108,28 @@ services:
       - ollama
     command: ["node", "dist/index.js", "gateway"]
     restart: unless-stopped
+
+    # Knowledge Engine: LightRAG (Dual-Level Retrieval)
+  lightrag:
+    image: ghcr.io/hkuds/lightrag:latest
+    container_name: apollo-lightrag
+    ports:
+      - "9621:9621"
+    volumes:
+      - C:/Apollo/Vault:/app/data/rag_storage
+      - C:/Apollo/Vault/Inputs:/app/data/inputs
+    environment:
+      - LLM_BINDING=ollama
+      - OLLAMA_HOST=http://ollama:11434
+    depends_on:
+      - ollama
+
+  # Scout: Crawl4AI (Anti-Bot Web Scraper)
+  crawl4ai:
+    image: unclecode/crawl4ai:latest
+    container_name: apollo-scout
+    ports:
+      - "11235:11235"
+    environment:
+      - MAX_CONCURRENT_TASKS=3
+    restart: unless-stopped
