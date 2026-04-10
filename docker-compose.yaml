@@ -96,7 +96,7 @@ services:
       - WORKSPACE_DIR=/home/node/.openclaw/workspace
       # 3. Identity
       - DEFAULT_MODEL=Apollo-Strategist
-      - GATEWAY_TOKEN=PASTE_YOUR_TOKEN_HERE
+      - GATEWAY_TOKEN=${APOLLO_TOKEN}
     volumes:
       # We map your Intel folder to the official internal path
       - C:/Apollo/Intel:/home/node/.openclaw
