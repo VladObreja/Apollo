@@ -1,0 +1,17 @@
+# Ignore the Models (Dozens of GB)
+*.gguf
+models/
+
+# Ignore Sensitive AI State & Data
+Intel/
+Vault/
+workspace/
+data/
+credentials/
+*.lock
+*.token
+
+# Ignore Docker/System Clutter
+.DS_Store
+Thumbs.db
+logs/

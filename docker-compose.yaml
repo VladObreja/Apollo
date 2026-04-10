@@ -1,0 +1,110 @@
+services:
+  # Inference Engine: Blackwell-Optimized
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./data/ollama:/root/.ollama
+      - C:/Apollo/Intel:/root/apollo_intel
+      - C:/Apollo/Vault:/root/apollo_vault
+    environment:
+      - OLLAMA_FLASH_ATTENTION=1
+      - OLLAMA_KV_CACHE_TYPE=q4_0  # <--- This is the correct home for this setting
+      - OLLAMA_NUM_GPU=-1          # Forces all layers to the 5070 Ti
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # Dashboard: Using your PRE-DOWNLOADED :cuda image
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:cuda
+    container_name: open-webui
+    restart: unless-stopped
+    ports:
+      - "3000:8080"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - WEBUI_SECRET_KEY=apollo_v2_secret
+    volumes:
+      - ./data/open-webui:/app/backend/data
+      - C:/Apollo/Intel:/app/backend/data/apollo_intel
+    depends_on:
+      - ollama
+
+  # Conductor: Orchestrating the "Scout" Scrapers
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_RUNNERS_ENABLED=true
+    volumes:
+      - ./data/n8n:/home/node/.n8n
+      - C:/Apollo/Intel:/home/node/apollo_intel
+    depends_on:
+      - n8n_db
+
+  # Automation Database
+  n8n_db:
+    image: postgres:16
+    container_name: n8n_db
+    restart: always
+    environment:
+      POSTGRES_USER: apollo_admin
+      POSTGRES_PASSWORD: secure_password_2026
+      POSTGRES_DB: apollo_state
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+
+  # Stealth Browser: For Longecity/Reddit Scraping
+  browserless:
+    image: browserless/chrome:latest
+    container_name: browserless
+    restart: unless-stopped
+    ports:
+      - "3003:3000"
+
+  # High-Fidelity PDF/Table Parser
+  docling:
+    image: ghcr.io/docling-project/docling-serve:latest
+    container_name: docling
+    ports:
+      - "5001:5001"
+
+  apollo-agent:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: apollo-agent
+    environment:
+      # 1. Connectivity
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OPENCLAW_GATEWAY_BIND=lan
+      - OPENCLAW_GATEWAY_PORT=18789
+      # 2. Authority (The powers you asked for)
+      - ALLOW_FILE_MODIFICATION=true
+      - ALLOW_DESKTOP_INTERACTION=true
+      - WORKSPACE_DIR=/home/node/.openclaw/workspace
+      # 3. Identity
+      - DEFAULT_MODEL=Apollo-Strategist
+      - GATEWAY_TOKEN=PASTE_YOUR_TOKEN_HERE
+    volumes:
+      # We map your Intel folder to the official internal path
+      - C:/Apollo/Intel:/home/node/.openclaw
+      - C:/Apollo/Intel/workspace:/home/node/.openclaw/workspace
+      - C:/Apollo/Vault:/root/apollo_vault
+    ports:
+      - "18789:18789"
+    depends_on:
+      - ollama
+    command: ["node", "dist/index.js", "gateway"]
+    restart: unless-stopped
