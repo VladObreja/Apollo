@@ -1,5 +1,5 @@
 services:
-  # Inference Engine: Blackwell-Optimized
+  # 1. Inference Engine: Blackwell-Optimized for 5070 Ti
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
@@ -12,8 +12,8 @@ services:
       - C:/Apollo/Vault:/root/apollo_vault
     environment:
       - OLLAMA_FLASH_ATTENTION=1
-      - OLLAMA_KV_CACHE_TYPE=q4_0  # <--- This is the correct home for this setting
-      - OLLAMA_NUM_GPU=-1          # Forces all layers to the 5070 Ti
+      - OLLAMA_KV_CACHE_TYPE=q4_0
+      - OLLAMA_NUM_GPU=-1          # Forces all layers to the 16GB 5070 Ti
     deploy:
       resources:
         reservations:
@@ -22,7 +22,7 @@ services:
               count: all
               capabilities: [gpu]
 
-  # Dashboard: Using your PRE-DOWNLOADED :cuda image
+  # 2. Primary Interface: Human-AI Collaboration Dashboard
   open-webui:
     image: ghcr.io/open-webui/open-webui:cuda
     container_name: open-webui
@@ -38,7 +38,7 @@ services:
     depends_on:
       - ollama
 
-  # Conductor: Orchestrating the "Scout" Scrapers
+  # 3. Automation Conductors: n8n & Postgres
   n8n:
     image: n8nio/n8n:latest
     container_name: n8n
@@ -55,7 +55,6 @@ services:
     depends_on:
       - n8n_db
 
-  # Automation Database
   n8n_db:
     image: postgres:16
     container_name: n8n_db
@@ -67,52 +66,17 @@ services:
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
 
-  # Stealth Browser: For Longecity/Reddit Scraping
-  browserless:
-    image: browserless/chrome:latest
-    container_name: browserless
-    restart: unless-stopped
-    ports:
-      - "3003:3000"
-
-  # High-Fidelity PDF/Table Parser
+  # 4. Ingestion Stage 1: The Purifier (HTML/PDF to MD)
   docling:
     image: ghcr.io/docling-project/docling-serve:latest
     container_name: docling
     ports:
       - "5001:5001"
     volumes:
-      - C:/Apollo/Vault/Raw:/root/apollo_raw
-      - C:/Apollo/Vault/Clean:/root/apollo_clean
+      - C:/Apollo/Vault/Raw:/root/apollo_raw     # In: Gemini HTML/PDFs
+      - C:/Apollo/Vault/Clean:/root/apollo_clean # Out: Purified Markdown
 
-  apollo-agent:
-    image: ghcr.io/openclaw/openclaw:latest
-    container_name: apollo-agent
-    environment:
-      # 1. Connectivity
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - OPENCLAW_GATEWAY_BIND=lan
-      - OPENCLAW_GATEWAY_PORT=18789
-      # 2. Authority (The powers you asked for)
-      - ALLOW_FILE_MODIFICATION=true
-      - ALLOW_DESKTOP_INTERACTION=true
-      - WORKSPACE_DIR=/home/node/.openclaw/workspace
-      # 3. Identity
-      - DEFAULT_MODEL=Apollo-Strategist
-      - GATEWAY_TOKEN=${APOLLO_TOKEN}
-    volumes:
-      # We map your Intel folder to the official internal path
-      - C:/Apollo/Intel:/home/node/.openclaw
-      - C:/Apollo/Intel/workspace:/home/node/.openclaw/workspace
-      - C:/Apollo/Vault:/root/apollo_vault
-    ports:
-      - "18789:18789"
-    depends_on:
-      - ollama
-    command: ["node", "dist/index.js", "gateway"]
-    restart: unless-stopped
-
-    # Knowledge Engine: LightRAG (Dual-Level Retrieval)
+  # 5. Ingestion Stage 2: The Knowledge Engine (Relationship Mapping)
   lightrag:
     image: ghcr.io/hkuds/lightrag:latest
     container_name: apollo-lightrag
@@ -120,18 +84,51 @@ services:
     ports:
       - "9621:9621"
     volumes:
-      - C:/Apollo/Vault/Database:/app/data/rag_storage # Internal Graph/Vector DB
-      - C:/Apollo/Vault/Clean:/app/data/inputs        # Clean Markdown Only
+      - C:/Apollo/Vault/Database:/app/data/rag_storage # GraphML & Vector Store
+      - C:/Apollo/Vault/Clean:/app/data/inputs        # Monitors Clean MD Only
     environment:
       - LLM_BINDING=ollama
       - LLM_BINDING_HOST=http://ollama:11434
-      - LLM_MODEL=Apollo-Architect
+      - LLM_MODEL=Apollo-Architect               # Ministral 14B Q6_K
       - EMBEDDING_BINDING=ollama
       - EMBEDDING_BINDING_HOST=http://ollama:11434
       - EMBEDDING_MODEL=nomic-embed-text
+      - SUMMARY_CONTEXT_SIZE=32000               # Deep Context Priority
+      - CHUNK_SIZE=1200                          # Balanced for 32k window
     depends_on:
       - ollama
-  # Scout: Crawl4AI (Anti-Bot Web Scraper)
+
+  # 6. The Librarian: Active Orchestrator
+  apollo-agent:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: apollo-agent
+    ports:
+      - "18789:18789"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OPENCLAW_GATEWAY_BIND=lan
+      - OPENCLAW_GATEWAY_PORT=18789
+      - ALLOW_FILE_MODIFICATION=true
+      - ALLOW_DESKTOP_INTERACTION=true
+      - WORKSPACE_DIR=/home/node/.openclaw/workspace
+      - DEFAULT_MODEL=Apollo-Strategist
+    volumes:
+      - C:/Apollo/Intel:/home/node/.openclaw
+      - C:/Apollo/Intel/workspace:/home/node/.openclaw/workspace
+      - C:/Apollo/Vault:/root/apollo_vault
+    depends_on:
+      - ollama
+    command: ["node", "dist/index.js", "gateway"]
+    restart: unless-stopped
+
+  # 7. Stealth Scouts: Browsing & Scraping
+  browserless:
+    image: browserless/chrome:latest
+    container_name: browserless
+    restart: unless-stopped
+    ports:
+      - "3003:3000"
+
   crawl4ai:
     image: unclecode/crawl4ai:latest
     container_name: apollo-scout
