@@ -1,5 +1,5 @@
 services:
-  # 1. Inference Engine: Blackwell-Optimized for 5070 Ti
+  # 1. THE INFERENCE ENGINE (5070 Ti Optimized)
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
@@ -13,7 +13,7 @@ services:
     environment:
       - OLLAMA_FLASH_ATTENTION=1
       - OLLAMA_KV_CACHE_TYPE=q4_0
-      - OLLAMA_NUM_GPU=-1          # Forces all layers to the 16GB 5070 Ti
+      - OLLAMA_NUM_GPU=-1
     deploy:
       resources:
         reservations:
@@ -22,27 +22,79 @@ services:
               count: all
               capabilities: [gpu]
 
-  # 2. Primary Interface: Human-AI Collaboration Dashboard
-  open-webui:
-    image: ghcr.io/open-webui/open-webui:cuda
-    container_name: open-webui
-    restart: unless-stopped
+  # 2. THE LIBRARIAN (OpenClaw Orchestrator)
+  apollo-agent:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: apollo-agent
     ports:
-      - "3000:8080"
+      - "18789:18789"
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
-      - WEBUI_SECRET_KEY=apollo_v2_secret
+      - OPENCLAW_GATEWAY_PORT=18789
+      - ALLOW_FILE_MODIFICATION=true
+      - ALLOW_DESKTOP_INTERACTION=true
+      - WORKSPACE_DIR=/home/node/.openclaw/workspace
+      - DEFAULT_MODEL=Apollo-Strategist
     volumes:
-      - ./data/open-webui:/app/backend/data
-      - C:/Apollo/Intel:/app/backend/data/apollo_intel
+      - C:/Apollo/Intel:/home/node/.openclaw
+      - C:/Apollo/Intel/workspace:/home/node/.openclaw/workspace
+      - C:/Apollo/Vault:/root/apollo_vault
+    depends_on:
+      - ollama
+    command: ["node", "dist/index.js", "gateway"]
+    restart: unless-stopped
+
+  # 3. THE PURIFIER (HTML/PDF -> Markdown)
+  docling:
+    image: ghcr.io/docling-project/docling-serve:latest
+    container_name: docling
+    ports:
+      - "5001:5001"
+    volumes:
+      - C:/Apollo/Vault/Raw:/root/apollo_raw
+      - C:/Apollo/Vault/Clean:/root/apollo_clean
+
+  # 4. THE MEMORY (LightRAG Knowledge Graph)
+  lightrag:
+    image: ghcr.io/hkuds/lightrag:latest
+    container_name: apollo-lightrag
+    ports:
+      - "9621:9621"
+    volumes:
+      - C:/Apollo/Vault/Database:/app/data/rag_storage
+      - C:/Apollo/Vault/Clean:/app/data/inputs
+    environment:
+      - LLM_BINDING=ollama
+      - LLM_BINDING_HOST=http://ollama:11434
+      - LLM_MODEL=Apollo-Architect
+      - EMBEDDING_BINDING=ollama
+      - EMBEDDING_BINDING_HOST=http://ollama:11434
+      - EMBEDDING_MODEL=nomic-embed-text
+      - SUMMARY_CONTEXT_SIZE=32000
     depends_on:
       - ollama
 
-  # 3. Automation Conductors: n8n & Postgres
+  # 5. THE SCOUTS (Web Scraping & Browsing)
+  browserless:
+    image: browserless/chrome:latest
+    container_name: browserless
+    ports:
+      - "3003:3000"
+    restart: unless-stopped
+
+  crawl4ai:
+    image: unclecode/crawl4ai:latest
+    container_name: apollo-scout
+    ports:
+      - "11235:11235"
+    environment:
+      - MAX_CONCURRENT_TASKS=3
+    restart: unless-stopped
+
+  # 6. THE CONDUCTORS (Automation Hub)
   n8n:
     image: n8nio/n8n:latest
     container_name: n8n
-    restart: unless-stopped
     ports:
       - "5678:5678"
     environment:
@@ -58,7 +110,6 @@ services:
   n8n_db:
     image: postgres:16
     container_name: n8n_db
-    restart: always
     environment:
       POSTGRES_USER: apollo_admin
       POSTGRES_PASSWORD: secure_password_2026
@@ -66,74 +117,17 @@ services:
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
 
-  # 4. Ingestion Stage 1: The Purifier (HTML/PDF to MD)
-  docling:
-    image: ghcr.io/docling-project/docling-serve:latest
-    container_name: docling
+  # 7. THE INTERFACE (Human Interaction)
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:cuda
+    container_name: open-webui
     ports:
-      - "5001:5001"
-    volumes:
-      - C:/Apollo/Vault/Raw:/root/apollo_raw     # In: Gemini HTML/PDFs
-      - C:/Apollo/Vault/Clean:/root/apollo_clean # Out: Purified Markdown
-
-  # 5. Ingestion Stage 2: The Knowledge Engine (Relationship Mapping)
-  lightrag:
-    image: ghcr.io/hkuds/lightrag:latest
-    container_name: apollo-lightrag
-    # REMOVE the 'command' line entirely to use the default ENTRYPOINT
-    ports:
-      - "9621:9621"
-    volumes:
-      - C:/Apollo/Vault/Database:/app/data/rag_storage
-      - C:/Apollo/Vault/Clean:/app/data/inputs
-    environment:
-      - LLM_BINDING=ollama
-      - LLM_BINDING_HOST=http://ollama:11434
-      - LLM_MODEL=Apollo-Architect
-      - EMBEDDING_BINDING=ollama
-      - EMBEDDING_BINDING_HOST=http://ollama:11434
-      - EMBEDDING_MODEL=nomic-embed-text
-      - SUMMARY_CONTEXT_SIZE=32000
-      - CHUNK_SIZE=1200
-    depends_on:
-      - ollama
-
-  # 6. The Librarian: Active Orchestrator
-  apollo-agent:
-    image: ghcr.io/openclaw/openclaw:latest
-    container_name: apollo-agent
-    ports:
-      - "18789:18789"
+      - "3000:8080"
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
-      - OPENCLAW_GATEWAY_BIND=lan
-      - OPENCLAW_GATEWAY_PORT=18789
-      - ALLOW_FILE_MODIFICATION=true
-      - ALLOW_DESKTOP_INTERACTION=true
-      - WORKSPACE_DIR=/home/node/.openclaw/workspace
-      - DEFAULT_MODEL=Apollo-Strategist
+      - WEBUI_SECRET_KEY=apollo_v2_secret
     volumes:
-      - C:/Apollo/Intel:/home/node/.openclaw
-      - C:/Apollo/Intel/workspace:/home/node/.openclaw/workspace
-      - C:/Apollo/Vault:/root/apollo_vault
+      - ./data/open-webui:/app/backend/data
+      - C:/Apollo/Intel:/app/backend/data/apollo_intel
     depends_on:
       - ollama
-    command: ["node", "dist/index.js", "gateway"]
-    restart: unless-stopped
-
-  # 7. Stealth Scouts: Browsing & Scraping
-  browserless:
-    image: browserless/chrome:latest
-    container_name: browserless
-    restart: unless-stopped
-    ports:
-      - "3003:3000"
-
-  crawl4ai:
-    image: unclecode/crawl4ai:latest
-    container_name: apollo-scout
-    ports:
-      - "11235:11235"
-    environment:
-      - MAX_CONCURRENT_TASKS=3
-    restart: unless-stopped
