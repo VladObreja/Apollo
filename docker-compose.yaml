@@ -81,6 +81,9 @@ services:
     container_name: docling
     ports:
       - "5001:5001"
+    volumes:
+      - C:/Apollo/Vault/Raw:/root/apollo_raw
+      - C:/Apollo/Vault/Clean:/root/apollo_clean
 
   apollo-agent:
     image: ghcr.io/openclaw/openclaw:latest
@@ -117,15 +120,15 @@ services:
     ports:
       - "9621:9621"
     volumes:
-      - C:/Apollo/Vault:/app/data/rag_storage
-      - C:/Apollo/Vault/Inputs:/app/data/inputs
+      - C:/Apollo/Vault/Database:/app/data/rag_storage # Internal Graph/Vector DB
+      - C:/Apollo/Vault/Clean:/app/data/inputs        # Clean Markdown Only
     environment:
       - LLM_BINDING=ollama
       - LLM_BINDING_HOST=http://ollama:11434
-      - LLM_MODEL=Apollo-Architect  # Or your Strategist model name
+      - LLM_MODEL=Apollo-Architect
       - EMBEDDING_BINDING=ollama
       - EMBEDDING_BINDING_HOST=http://ollama:11434
-      - EMBEDDING_MODEL=nomic-embed-text # REQUIRED: You must pull this model
+      - EMBEDDING_MODEL=nomic-embed-text
     depends_on:
       - ollama
   # Scout: Crawl4AI (Anti-Bot Web Scraper)
