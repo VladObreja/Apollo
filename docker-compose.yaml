@@ -80,21 +80,21 @@ services:
   lightrag:
     image: ghcr.io/hkuds/lightrag:latest
     container_name: apollo-lightrag
-    command: ["python3", "-m", "lightrag.api.lightrag_server", "--auto-scan-at-startup"]
+    # REMOVE the 'command' line entirely to use the default ENTRYPOINT
     ports:
       - "9621:9621"
     volumes:
-      - C:/Apollo/Vault/Database:/app/data/rag_storage # GraphML & Vector Store
-      - C:/Apollo/Vault/Clean:/app/data/inputs        # Monitors Clean MD Only
+      - C:/Apollo/Vault/Database:/app/data/rag_storage
+      - C:/Apollo/Vault/Clean:/app/data/inputs
     environment:
       - LLM_BINDING=ollama
       - LLM_BINDING_HOST=http://ollama:11434
-      - LLM_MODEL=Apollo-Architect               # Ministral 14B Q6_K
+      - LLM_MODEL=Apollo-Architect
       - EMBEDDING_BINDING=ollama
       - EMBEDDING_BINDING_HOST=http://ollama:11434
       - EMBEDDING_MODEL=nomic-embed-text
-      - SUMMARY_CONTEXT_SIZE=32000               # Deep Context Priority
-      - CHUNK_SIZE=1200                          # Balanced for 32k window
+      - SUMMARY_CONTEXT_SIZE=32000
+      - CHUNK_SIZE=1200
     depends_on:
       - ollama
 
