@@ -1,5 +1,5 @@
 services:
-  # 1. THE INFERENCE ENGINE (5070 Ti Optimized)
+  # 1. THE INFERENCE ENGINE (5070 Ti Blackwell-Optimized)
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
@@ -12,8 +12,8 @@ services:
       - C:/Apollo/Vault:/root/apollo_vault
     environment:
       - OLLAMA_FLASH_ATTENTION=1
-      - OLLAMA_KV_CACHE_TYPE=q4_0
-      - OLLAMA_NUM_GPU=-1
+      - OLLAMA_KV_CACHE_TYPE=q4_0  # Optimizes VRAM for 32k context
+      - OLLAMA_NUM_GPU=-1          # Forces all layers to the 5070 Ti
     deploy:
       resources:
         reservations:
@@ -22,7 +22,7 @@ services:
               count: all
               capabilities: [gpu]
 
-  # 2. THE LIBRARIAN (OpenClaw Orchestrator)
+  # 2. THE LIBRARIAN (OpenClaw Orchestrator with GPT-5.4 Cloud-Link)
   apollo-agent:
     image: ghcr.io/openclaw/openclaw:latest
     container_name: apollo-agent
@@ -34,7 +34,7 @@ services:
       - ALLOW_FILE_MODIFICATION=true
       - ALLOW_DESKTOP_INTERACTION=true
       - WORKSPACE_DIR=/home/node/.openclaw/workspace
-      - DEFAULT_MODEL=Apollo-Strategist
+      - GATEWAY_TOKEN=${APOLLO_TOKEN} # Authenticates via your .env file
     volumes:
       - C:/Apollo/Intel:/home/node/.openclaw
       - C:/Apollo/Intel/workspace:/home/node/.openclaw/workspace
@@ -51,30 +51,30 @@ services:
     ports:
       - "5001:5001"
     volumes:
-      - C:/Apollo/Vault/Raw:/root/apollo_raw
-      - C:/Apollo/Vault/Clean:/root/apollo_clean
+      - C:/Apollo/Vault/Raw:/root/apollo_raw     # Ingestion Source
+      - C:/Apollo/Vault/Clean:/root/apollo_clean # Purification Output
 
-  # 4. THE MEMORY (LightRAG Knowledge Graph)
+  # 4. THE MEMORY (LightRAG Knowledge Engine)
   lightrag:
     image: ghcr.io/hkuds/lightrag:latest
     container_name: apollo-lightrag
     ports:
       - "9621:9621"
     volumes:
-      - C:/Apollo/Vault/Database:/app/data/rag_storage
-      - C:/Apollo/Vault/Clean:/app/data/inputs
+      - C:/Apollo/Vault/Database:/app/data/rag_storage # Persistent Graph DB
+      - C:/Apollo/Vault/Clean:/app/data/inputs        # Only indexes Clean MD
     environment:
       - LLM_BINDING=ollama
       - LLM_BINDING_HOST=http://ollama:11434
-      - LLM_MODEL=Apollo-Architect
+      - LLM_MODEL=Apollo-Architect               # Ministral 14B Q6_K
       - EMBEDDING_BINDING=ollama
       - EMBEDDING_BINDING_HOST=http://ollama:11434
-      - EMBEDDING_MODEL=nomic-embed-text
-      - SUMMARY_CONTEXT_SIZE=32000
+      - EMBEDDING_MODEL=nomic-embed-text         # Local vectorization
+      - SUMMARY_CONTEXT_SIZE=32000               # 32k Context Priority
     depends_on:
       - ollama
 
-  # 5. THE SCOUTS (Web Scraping & Browsing)
+  # 5. THE SCOUTS (Web Scraping & Stealth Browsing)
   browserless:
     image: browserless/chrome:latest
     container_name: browserless
@@ -91,7 +91,7 @@ services:
       - MAX_CONCURRENT_TASKS=3
     restart: unless-stopped
 
-  # 6. THE CONDUCTORS (Automation Hub)
+  # 6. THE CONDUCTORS (Automation & State Tracking)
   n8n:
     image: n8nio/n8n:latest
     container_name: n8n
@@ -117,7 +117,7 @@ services:
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
 
-  # 7. THE INTERFACE (Human Interaction)
+  # 7. THE INTERFACE (Human Dashboard)
   open-webui:
     image: ghcr.io/open-webui/open-webui:cuda
     container_name: open-webui
@@ -130,4 +130,4 @@ services:
       - ./data/open-webui:/app/backend/data
       - C:/Apollo/Intel:/app/backend/data/apollo_intel
     depends_on:
-      - ollama
+      - ollama  
