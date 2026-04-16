@@ -38,7 +38,8 @@ services:
     volumes:
       - C:/Apollo/Intel:/home/node/.openclaw
       - C:/Apollo/Intel/workspace:/home/node/.openclaw/workspace
-      - C:/Apollo/Vault:/root/apollo_vault
+      # Map the Vault as a sub-folder of the Workspace
+      - C:/Apollo/Vault:/home/node/.openclaw/workspace/vault
     depends_on:
       - ollama
     command: ["node", "dist/index.js", "gateway"]
