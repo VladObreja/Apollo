@@ -130,4 +130,4 @@ services:
       - ./data/open-webui:/app/backend/data
       - C:/Apollo/Intel:/app/backend/data/apollo_intel
     depends_on:
-      - ollama  
+      - ollama
