@@ -1,0 +1,138 @@
+services:
+  # 1. THE INFERENCE ENGINE
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - "./data/ollama:/root/.ollama"
+      - "C:/Apollo/Intel:/root/apollo_intel"
+      - "C:/Apollo/Vault:/root/apollo_vault"
+    environment:
+      OLLAMA_FLASH_ATTENTION: "1"
+      OLLAMA_KV_CACHE_TYPE: "q4_0"
+      OLLAMA_NUM_GPU: "-1"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: ["gpu"]
+
+  # 2. THE LIBRARIAN
+  apollo-agent:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: apollo-agent
+    restart: unless-stopped
+    ports:
+      - "18789:18789"
+    environment:
+      OLLAMA_BASE_URL: "http://ollama:11434"
+      OPENCLAW_GATEWAY_PORT: "18789"
+      ALLOW_FILE_MODIFICATION: "true"
+      ALLOW_DESKTOP_INTERACTION: "true"
+      WORKSPACE_DIR: "/home/node/.openclaw/workspace"
+      GATEWAY_TOKEN: "${APOLLO_TOKEN}"
+    volumes:
+      - "C:/Apollo/Intel:/home/node/.openclaw"
+      - "C:/Apollo:/home/node/.openclaw/workspace"
+      # Compatibility aliases for old paths already used in-session
+      - "C:/Apollo/Vault:/home/node/.openclaw/workspace/vault"
+      - "C:/Apollo/Vault/Raw:/home/node/.openclaw/workspace/vault/raw"
+      - "C:/Apollo/Vault/Clean:/home/node/.openclaw/workspace/vault/clean"
+      - "C:/Apollo/Vault/Database:/home/node/.openclaw/workspace/vault/database"
+    depends_on:
+      - ollama
+    command: ["node", "dist/index.js", "gateway"]
+
+  # 3. THE PURIFIER
+  docling:
+    image: ghcr.io/docling-project/docling-serve:latest
+    container_name: docling
+    ports:
+      - "5001:5001"
+    volumes:
+      - "C:/Apollo/Vault/Raw:/root/apollo_raw"
+      - "C:/Apollo/Vault/Clean:/root/apollo_clean"
+
+  # 4. THE MEMORY
+  lightrag:
+    image: ghcr.io/hkuds/lightrag:latest
+    container_name: apollo-lightrag
+    ports:
+      - "9621:9621"
+    volumes:
+      - "C:/Apollo/Vault/Database:/app/data/rag_storage"
+      - "C:/Apollo/Vault/Clean:/app/data/inputs"
+    environment:
+      LLM_BINDING: "ollama"
+      LLM_BINDING_HOST: "http://ollama:11434"
+      LLM_MODEL: "Apollo-Architect"
+      EMBEDDING_BINDING: "ollama"
+      EMBEDDING_BINDING_HOST: "http://ollama:11434"
+      EMBEDDING_MODEL: "nomic-embed-text"
+      SUMMARY_CONTEXT_SIZE: "32000"
+    depends_on:
+      - ollama
+
+  # 5. THE SCOUTS
+  browserless:
+    image: browserless/chrome:latest
+    container_name: browserless
+    restart: unless-stopped
+    ports:
+      - "3003:3000"
+
+  crawl4ai:
+    image: unclecode/crawl4ai:latest
+    container_name: apollo-scout
+    restart: unless-stopped
+    ports:
+      - "11235:11235"
+    environment:
+      MAX_CONCURRENT_TASKS: "3"
+
+  # 6. THE CONDUCTORS
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    ports:
+      - "5678:5678"
+    environment:
+      N8N_HOST: "0.0.0.0"
+      N8N_PORT: "5678"
+      N8N_RUNNERS_ENABLED: "true"
+    volumes:
+      - "./data/n8n:/home/node/.n8n"
+      - "C:/Apollo/Intel:/home/node/apollo_intel"
+    depends_on:
+      - n8n_db
+
+  n8n_db:
+    image: postgres:16
+    container_name: n8n_db
+    environment:
+      POSTGRES_USER: "apollo_admin"
+      POSTGRES_PASSWORD: "secure_password_2026"
+      POSTGRES_DB: "apollo_state"
+    volumes:
+      - "./data/postgres:/var/lib/postgresql/data"
+
+  # 7. THE INTERFACE
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:cuda
+    container_name: open-webui
+    ports:
+      - "3000:8080"
+    environment:
+      OLLAMA_BASE_URL: "http://ollama:11434"
+      WEBUI_SECRET_KEY: "apollo_v2_secret"
+    volumes:
+      - "./data/open-webui:/app/backend/data"
+      - "C:/Apollo/Intel:/app/backend/data/apollo_intel"
+      - "C:/Apollo:/app/backend/data/apollo_repo"
+    depends_on:
+      - ollama

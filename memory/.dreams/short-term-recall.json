@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "updatedAt": "2026-04-17T08:19:34.970Z",
+  "entries": {
+    "memory:memory/2026-04-17.md:1:12": {
+      "key": "memory:memory/2026-04-17.md:1:12",
+      "path": "memory/2026-04-17.md",
+      "startLine": 1,
+      "endLine": 12,
+      "source": "memory",
+      "snippet": "# 2026-04-17 - The root `MEMORY.md` was discovered missing after the session history was lost when the PC went into standby. - Searched for old memory copies. `Intel/memory.md` exists but only contained a test line, so it was not useful as a real recovery source. - Recovered Apollo continuity from `projects/apollo/` control docs and from the archived session note `legacy/Intel/workspace/memory/2026-04-16-lightrag-ingestion.md`. - Rebuilt a fresh root `MEMORY.md` with the durable Apollo context and continuity rules. - Added a `memory/backups/` backup path and a simple backup script so future `MEMORY.md` changes can be mirrored. - Updated `AGENTS.md` with instructions to restore `MEMORY.md` f",
+      "recallCount": 5,
+      "dailyCount": 0,
+      "totalScore": 3.100030733977525,
+      "maxScore": 0.7324877206765661,
+      "firstRecalledAt": "2026-04-17T06:32:46.514Z",
+      "lastRecalledAt": "2026-04-17T08:19:34.970Z",
+      "queryHashes": [
+        "62340dec9e2e",
+        "5486fd19324c",
+        "0297a8c520db",
+        "59d94b7a66ce",
+        "276b9b09b431"
+      ],
+      "recallDays": [
+        "2026-04-17"
+      ],
+      "conceptTags": [
+        "backup",
+        "backups",
+        "memory.md",
+        "intel/memory.md",
+        "projects/apollo",
+        "memory/backups",
+        "agents.md",
+        "the"
+      ]
+    },
+    "memory:memory/2026-04-17.md:10:20": {
+      "key": "memory:memory/2026-04-17.md:10:20",
+      "path": "memory/2026-04-17.md",
+      "startLine": 10,
+      "endLine": 20,
+      "source": "memory",
+      "snippet": "- The user added a new workspace rule: before modifying core project/runtime files like `docker-compose.yaml`, `apollo_up.bat`, `apollo_down.bat`, `.env`, and similar files, create dated/versioned backups in `legacy/Backups/`. - Seeded `legacy/Backups/` with backups of `docker-compose.yaml`, `apollo_up.bat`, `apollo_down.bat`, `.env`, and `AGENTS.md`, and added `scripts/backup_core_project_files.sh` to make that easier to follow consistently. - Backed up `docker-compose.yaml` and `.env` again as `v2` snapshots before hardening them. - Hardened `docker-compose.yaml` with restart policies, `init: true`, graceful stop periods, and core service healthchecks, while keeping remote-access port expo",
+      "recallCount": 3,
+      "dailyCount": 0,
+      "totalScore": 1.939106397150209,
+      "maxScore": 0.6754309143202524,
+      "firstRecalledAt": "2026-04-17T08:06:32.673Z",
+      "lastRecalledAt": "2026-04-17T08:19:34.970Z",
+      "queryHashes": [
+        "0297a8c520db",
+        "59d94b7a66ce",
+        "276b9b09b431"
+      ],
+      "recallDays": [
+        "2026-04-17"
+      ],
+      "conceptTags": [
+        "backup",
+        "backups",
+        "project/runtime",
+        "docker-compose.yaml",
+        "apollo-up.bat",
+        "apollo-down.bat",
+        "dated/versioned",
+        "legacy/backups"
+      ]
+    }
+  }
+}
