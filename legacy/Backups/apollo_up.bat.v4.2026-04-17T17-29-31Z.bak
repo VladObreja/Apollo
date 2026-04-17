@@ -23,7 +23,7 @@ if errorlevel 1 (
 )
 
 echo [4/6] Starting full Apollo stack...
-%COMPOSE_CMD% up -d --build --remove-orphans || goto :fail
+%COMPOSE_CMD% up -d --remove-orphans || goto :fail
 
 echo [5/6] Waiting for core services to become healthy...
 call :wait_healthy ollama 180 || goto :fail

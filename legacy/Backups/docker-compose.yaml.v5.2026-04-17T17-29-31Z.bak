@@ -38,12 +38,8 @@ services:
   # 2. THE LIBRARIAN
   # =========================================================
   apollo-agent:
-    build:
-      context: .
-      dockerfile: docker/apollo-agent/Dockerfile
-    image: apollo-agent:local
+    image: ghcr.io/openclaw/openclaw:latest
     container_name: apollo-agent
-    user: "0:0"
     restart: unless-stopped
     init: true
     stop_grace_period: 45s
@@ -57,8 +53,6 @@ services:
       WORKSPACE_DIR: "/home/node/.openclaw/workspace"
       GATEWAY_TOKEN: "${APOLLO_TOKEN}"
     volumes:
-      # Intentional: this gives the OpenClaw runtime host Docker control.
-      - "/var/run/docker.sock:/var/run/docker.sock"
       - "C:/Apollo/Intel:/home/node/.openclaw"
       - "C:/Apollo:/home/node/.openclaw/workspace"
       # Compatibility aliases for old paths already used in-session.
