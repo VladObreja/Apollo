@@ -218,27 +218,6 @@ services:
       retries: 10
       start_period: 20s
 
-  hermes_db:
-    image: postgres:16
-    container_name: hermes_db
-    restart: unless-stopped
-    init: true
-    stop_grace_period: 60s
-    environment:
-      POSTGRES_USER: "hermes_admin"
-      POSTGRES_PASSWORD: "${HERMES_DB_PASSWORD}"
-      POSTGRES_DB: "hermes_research"
-    volumes:
-      - "./data/hermes_postgres:/var/lib/postgresql/data"
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
-      interval: 20s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-
   n8n:
     image: n8nio/n8n:latest
     container_name: n8n
