@@ -1,0 +1,61 @@
+{
+  "project": "apollo",
+  "date": "2026-04-17",
+  "overall_status": "in_progress",
+  "active_phase": "Phase I Alpha",
+  "focus": "Establish a thin but real Apollo backbone using the existing running stack and the existing clean Apollo/Aurelius corpus, while hardening runtime continuity enough to survive standby/restart events, defining the Phase I Alpha knowledge contract, and then proving the first grounded retrieval/query loop.",
+  "principles": [
+    "one governing assistant, not one monolith",
+    "local-first, cloud-augmented only when justified",
+    "OTS-first, custom where needed",
+    "backbone before theatrics",
+    "markdown is the primary project record",
+    "preserve provenance and project boundaries"
+  ],
+  "current_assets": {
+    "running_stack": true,
+    "full_repo_visible_in_workspace": true,
+    "clean_corpus_present": true,
+    "legacy_nested_workspace_archived": true,
+    "canonical_project_control_folder_present": true,
+    "knowledge_contract_present": true,
+    "memory_backup_path_present": true,
+    "memory_backup_daemon_present": true
+  },
+  "next_actions": [
+    "validate the hardened docker-compose.yaml against the live runtime",
+    "validate the rewritten apollo_up.bat and apollo_down.bat against the live runtime",
+    "inspect Vault/Clean ingest and classification manifests",
+    "define the first retrieval surface using the knowledge contract",
+    "verify LightRAG input and indexing behavior",
+    "prove the first grounded Apollo query loop",
+    "create a validation pack of canonical project questions"
+  ],
+  "blockers": [
+    "Git safe.directory issue inside container if repo operations are needed",
+    "Live Docker validation is not available from the current session because Docker CLI access is missing here",
+    "LightRAG end-to-end indexing behavior against the clean corpus not yet verified"
+  ],
+  "control_files": [
+    "README.md",
+    "charter.md",
+    "contract.md",
+    "status.md",
+    "decisions.md",
+    "deliverables.md",
+    "checklist.md",
+    "roadmap.md",
+    "architecture.md",
+    "handoff.md",
+    "sources.md",
+    "status.json"
+  ],
+  "key_paths": {
+    "project_control": "projects/apollo",
+    "clean_corpus": "Vault/Clean",
+    "raw_corpus": "Vault/raw",
+    "retrieval_db": "Vault/Database",
+    "runtime_state": "Intel",
+    "legacy_archive": "legacy"
+  }
+}
