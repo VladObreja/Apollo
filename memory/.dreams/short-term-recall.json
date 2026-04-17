@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-04-17T08:19:34.970Z",
+  "updatedAt": "2026-04-17T11:55:10.826Z",
   "entries": {
     "memory:memory/2026-04-17.md:1:12": {
       "key": "memory:memory/2026-04-17.md:1:12",
@@ -53,6 +53,66 @@
         "0297a8c520db",
         "59d94b7a66ce",
         "276b9b09b431"
+      ],
+      "recallDays": [
+        "2026-04-17"
+      ],
+      "conceptTags": [
+        "backup",
+        "backups",
+        "project/runtime",
+        "docker-compose.yaml",
+        "apollo-up.bat",
+        "apollo-down.bat",
+        "dated/versioned",
+        "legacy/backups"
+      ]
+    },
+    "memory:memory/2026-04-17.md:33:42": {
+      "key": "memory:memory/2026-04-17.md:33:42",
+      "path": "memory/2026-04-17.md",
+      "startLine": 33,
+      "endLine": 42,
+      "source": "memory",
+      "snippet": "- Backed up `docker-compose.yaml` and `.env` again as `v2` snapshots before hardening them. - Hardened `docker-compose.yaml` with restart policies, `init: true`, graceful stop periods, and core service healthchecks, while keeping remote-access port exposure unchanged. - Moved compose-managed secrets into `.env` and added `POSTGRES_PASSWORD`, `WEBUI_SECRET_KEY`, and the existing `N8N_ENCRYPTION_KEY` there. - Deliberately did **not** switch `n8n` to Postgres in this pass, to avoid silently stranding the existing SQLite-backed state. - Updated Apollo control docs to record the hardening decisions and next validation steps. - Backed up the core project files again as `v3` snapshots before rewrit",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "totalScore": 0.6431278065619207,
+      "maxScore": 0.6431278065619207,
+      "firstRecalledAt": "2026-04-17T11:55:10.826Z",
+      "lastRecalledAt": "2026-04-17T11:55:10.826Z",
+      "queryHashes": [
+        "a6eb82c2ea7f"
+      ],
+      "recallDays": [
+        "2026-04-17"
+      ],
+      "conceptTags": [
+        "docker-compose.yaml",
+        "remote-access",
+        "compose-managed",
+        "postgres-password",
+        "webui-secret-key",
+        "n8n-encryption-key",
+        "sqlite-backed",
+        "backed"
+      ]
+    },
+    "memory:memory/2026-04-17.md:10:19": {
+      "key": "memory:memory/2026-04-17.md:10:19",
+      "path": "memory/2026-04-17.md",
+      "startLine": 10,
+      "endLine": 19,
+      "source": "memory",
+      "snippet": "- The user added a new workspace rule: before modifying core project/runtime files like `docker-compose.yaml`, `apollo_up.bat`, `apollo_down.bat`, `.env`, and similar files, create dated/versioned backups in `legacy/Backups/`. - Seeded `legacy/Backups/` with backups of `docker-compose.yaml`, `apollo_up.bat`, `apollo_down.bat`, `.env`, and `AGENTS.md`, and added `scripts/backup_core_project_files.sh` to make that easier to follow consistently. - Backed up `docker-compose.yaml` and `.env` again as `v2` snapshots before hardening them. - Hardened `docker-compose.yaml` with restart policies, `init: true`, graceful stop periods, and core service healthchecks, while keeping remote-access port expo",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "totalScore": 0.6417732366058309,
+      "maxScore": 0.6417732366058309,
+      "firstRecalledAt": "2026-04-17T11:55:10.826Z",
+      "lastRecalledAt": "2026-04-17T11:55:10.826Z",
+      "queryHashes": [
+        "a6eb82c2ea7f"
       ],
       "recallDays": [
         "2026-04-17"
