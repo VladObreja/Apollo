@@ -1,0 +1,68 @@
+{
+  "project": "hermes",
+  "date": "2026-04-17",
+  "overall_status": "in_progress",
+  "active_phase": "Phase 0 Foundation",
+  "focus": "Establish a minimal but real Hermes backbone for remote-viewing and broader psi-functioning operations, centered on controlled tasking, remote session intake, feedback release, structured storage, and basic analysis, while explicitly deferring live market execution and premature system sprawl.",
+  "principles": [
+    "small chunks first",
+    "research backbone before market automation",
+    "structured records over vague impressions",
+    "blindness and protocol discipline where required",
+    "Apollo remains the governing platform",
+    "human review before consequential action",
+    "paper and analysis before real-money execution",
+    "markdown is the primary continuity layer"
+  ],
+  "current_assets": {
+    "canonical_project_control_folder_present": true,
+    "readme_present": true,
+    "charter_present": true,
+    "contract_present": true,
+    "status_present": true,
+    "decisions_present": true,
+    "checklist_present": true,
+    "handoff_present": true,
+    "status_json_present": true,
+    "shared_apollo_infrastructure_available": true,
+    "central_openclaw_surface_intended": true,
+    "first_working_session_loop_implemented": false
+  },
+  "human_roles": {
+    "project_administrator": "user",
+    "initial_viewer_support": "at least one psionic asset / viewer",
+    "multi_viewer_expansion_planned": true
+  },
+  "next_actions": [
+    "define the minimum Hermes record schema set for viewers, tasks, targets, sessions, feedback, and scoring or outcomes",
+    "choose the first real remote workflow surface for administrator and viewer interaction",
+    "decide whether the first persistence layer is database-first, file-first, or hybrid",
+    "define the minimum blind or partially blind operating protocol",
+    "define the first basic analysis and review outputs",
+    "prove one end-to-end Hermes session loop cleanly"
+  ],
+  "blockers": [
+    "the first remote interaction surface has not yet been chosen",
+    "the first storage implementation pattern has not yet been chosen",
+    "authentication and role-separation details are not yet defined",
+    "the first scoring or outcome schema is not yet defined"
+  ],
+  "control_files": [
+    "README.md",
+    "charter.md",
+    "contract.md",
+    "status.md",
+    "decisions.md",
+    "checklist.md",
+    "handoff.md",
+    "status.json"
+  ],
+  "key_paths": {
+    "project_control": "projects/hermes",
+    "shared_apollo_control": "projects/apollo",
+    "workspace_root": "/home/node/.openclaw/workspace",
+    "runtime_state": "Intel",
+    "supporting_clean_corpus": "Vault/Clean",
+    "raw_corpus": "Vault/raw"
+  }
+}
