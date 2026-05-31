@@ -1,14 +1,14 @@
 ---
-stepsCompleted: [1, 2, 3-partial]
+stepsCompleted: [1, 2, 3, 4]
 inputDocuments: []
 session_topic: 'Local Semi-Sovereign LLM Architecture - Project Apollo'
 session_goals: 'Explore architectural approaches, feature design, and implementation strategies for a local-first AI system centered on a remote viewing project management MVP, with expansion paths to knowledge base and agentic web archiving capabilities'
 selected_approach: 'ai-recommended'
-techniques_used: ['morphological-analysis', 'first-principles', 'concept-blending', 'chaos-engineering-pending']
-ideas_generated: 110
+techniques_used: ['morphological-analysis', 'first-principles', 'concept-blending', 'chaos-engineering-hira']
+ideas_generated: 121
 context_file: ''
 session_continued: true
-continuation_date: '2026-05-30'
+continuation_date: '2026-05-31'
 ---
 
 # Brainstorming Session Results
@@ -867,6 +867,72 @@ _Novelty:_ Separates two independent sources of uncertainty that the existing ar
 
 ---
 
+## Phase 4: Chaos Engineering — New Ideas
+
+**[Architecture #111]: Extraction Field Plausibility Validation**
+_Concept:_ Post-extraction deterministic validation layer runs before any session commit. Field-level rules: asset-reported measurement time must precede email-receipt time and fall within a configurable window (default 30 days); angular/percentage values within valid range; required fields non-null. Any field failing plausibility is flagged extraction-uncertain, held in pending state, triggers correction cycle (#14). Rules are version-controlled and logged in provenance chain (#104) alongside agent version.
+_Novelty:_ Separate from #14 (LLM extraction confidence) — this is a deterministic post-hoc guard that catches systematic agent errors regardless of the agent's own internal confidence. Catches version-drift bugs before they propagate silently into the corpus.
+
+**[Architecture #120]: Admin State Trend Analysis**
+_Concept:_ Rolling trend analysis on Admin State Snapshot (#59) data over configurable windows (default 30-day and 90-day). If Clarity or Energy rolling average drops below a configurable threshold, or Pressure remains High for an extended period, the system flags a sustained admin state concern — displayed prominently at the next planning session as a first-class alert, not a footnote. The admin acknowledges and continues, or triggers a voluntary operational pause. Flag events are logged as corpus events with the rolling metrics at time of flag. Not a blocker — the admin retains authority — but the system makes the trend visible before it compounds silently into a series of decisions made under diminished capacity.
+_Novelty:_ Admin State Snapshot (#59) captures moment-to-moment state per interaction; trend analysis creates a longitudinal admin health indicator. A single low-clarity session is noise; eight consecutive low-clarity sessions across a month is a signal. The system is the only party positioned to detect it — the admin experiencing the drift is the least likely to notice it objectively.
+
+---
+
+**[Architecture #121]: Anonymization-by-Design Protocol**
+_Concept:_ All participants operate through dedicated, unpersonalized research email addresses created exclusively for Apollo operations (e.g., `apollo.asset1@proton.me`, `apollo.admin@proton.me`). No personal email addresses, real names, or identity-linking data enter the system at any layer. The asset registry (#13) stores only the research address linked to the codename. The extraction agent (#14) never processes a personal identity — only the research address mapped to an operational identifier. The system has no concept of a real person: only codenames, roles, and research addresses. A complete corpus breach exposes session performance data and session content — but no information capable of linking that data to a real identity without prior external knowledge.
+_Novelty:_ Anonymization at the infrastructure layer rather than the data storage layer. Most privacy designs pseudonymize stored data; this design prevents personal data from entering the system in the first place. The distinction matters: pseudonymization can be reversed with a key; this architecture has no key to reverse because the personal identity was never stored.
+
+---
+
+**[Research Design #119]: Corpus Scientific Value Preservation**
+_Concept:_ Regardless of primary mission outcome, the corpus is structured and documented for external scientific contribution from day one. Requirements: anonymised export format (asset codename only, no PII); methodology documentation sufficient for independent replication; session provenance chain (#104) interpretable without Apollo's codebase; schema versioning (#75) ensuring long-term readability. A rigorously documented null result — sustained, statistically powered, provenance-chained — from a well-designed single-asset psi research system is a publishable scientific contribution to the field. The corpus has value to the research community independent of whether Apollo's trading mission succeeds.
+_Novelty:_ Reframes the worst-case outcome. If the foundational axiom is challenged by the corpus, Apollo has not failed — it has produced the most rigorous single-practitioner null result in the psi research literature. That is a scientific legacy worth having. The archival-grade preservation (#75) already provides the infrastructure; this decision names the external-contribution purpose explicitly and ensures the documentation standard is maintained with that audience in mind from the start.
+
+---
+
+**[Architecture #118]: Bracket Order Protocol**
+_Concept:_ All trades are entered with simultaneous TP and SL as OCO (One-Cancels-Other) bracket orders — no single-leg entries permitted. TP level derived directly from the question formulation (#47): the tasking question already specifies the resolution condition (e.g., "rises more than 9% by June 10th" → TP at +9%, expiry June 10th). SL set at a configurable risk multiple at entry time (default: 1.5× expected move or fixed percentage). Execution layer (#51) enforces the bracket requirement and rejects non-compliant entry attempts. Pre-blackout checklist verifies all open positions carry active bracket orders before admin goes offline.
+_Novelty:_ The question formulation architecture (#47) — designed primarily as a research integrity measure — produces the TP specification as a structural byproduct. The trade specification and the research question are the same object (#47); the bracket order protocol makes the exit strategy an automatic consequence of the question formulation, not a separate trading decision requiring admin presence to execute.
+
+---
+
+**[Research Design #116]: Admin Contamination Event Log**
+_Concept:_ Voluntary lightweight log for admin to record target-adjacent information encountered during open session windows. Entry fields: timestamp (auto-captured), session reference (if known — may be blind to admin), information type (news/social/broker notification/personal knowledge), specificity (ambient/specific), and a free-text note. Stored as an append-only corpus layer separate from session records; linked retroactively when session closes and target is revealed. Compliance is voluntary — the log captures what the admin chooses to report. Non-reporting is itself a corpus signal: sessions with no contamination log entry are classified Admin-Ambient by default, not Admin-Naive.
+_Novelty:_ Converts the unavoidable ambient information environment from an uncontrolled confound into a tracked variable. The distinction between Admin-Naive (no known exposure) and Admin-Ambient (exposure possible but unlogged) is honest — it acknowledges that absence of a log entry is not proof of a clean state.
+
+---
+
+**[Research Design #117]: Admin Awareness Tier**
+_Concept:_ Extension of Purity Tier (#22) adding an orthogonal admin-awareness dimension to every session record. Four states: **Admin-Naive** (compartment architecture held; no known admin exposure to target before session close); **Admin-Ambient** (default state for financially-informed admin; possible exposure unlogged); **Admin-Contaminated** (specific known exposure logged via #116 before session close); **Admin-Directed** (intentional admin target knowledge — Directed Track #25). Tier assigned at session close based on contamination log state and compartment audit. Primary stratification variable in admin co-sensing analysis: does admin prior knowledge correlate with session accuracy? Under what conditions does contamination improve outcomes vs. degrade them?
+_Novelty:_ Operationalises the Admin as Latent Co-Practitioner hypothesis (#86) on the accidental/ambient contamination axis — not just the intentional directed axis. If Admin-Contaminated sessions systematically outperform Admin-Naive sessions, the corpus has found evidence that admin awareness of the target amplifies the psi signal rather than corrupting it. That finding would be architecturally transformative.
+
+---
+
+**[Architecture #114]: Pre-Committed Exit Criteria**
+_Concept:_ Mirror image of phase advancement criteria (#109). Before the corpus is evaluable, admin commits in writing the objective conditions under which the study is concluded non-viable: minimum session count evaluated, minimum rolling window length, statistical threshold for sustained below-chance performance. Conditions locked before the corpus can influence them — identical pre-specification logic as #109. Exit criteria crossing generates a Parameter Update Proposal (#56) for admin approval, not automatic shutdown. Makes the distinction between "pre-committed criteria met" and "admin is in a losing streak and wants to quit" explicit and operational. Logged as an Epistemological Ledger entry (#95) at commitment time.
+_Novelty:_ Rational exit and panic abandonment look identical from the inside under emotional pressure. Pre-committed criteria make them distinguishable from the outside — by the admin's own prior self, before the pressure existed.
+
+---
+
+**[Architecture #115]: Mandatory Protocol Change Moratorium During Drawdown**
+_Concept:_ Any parameter modification, protocol adjustment, or study design change proposed while the system is in DEGRADED state or within a configurable window of threshold approach is automatically held for a minimum cooling-off period (default: 30 days or N sessions, whichever longer) before admin approval is permitted. The moratorium is a structural delay, not a veto — admin can approve after the period expires. Moratorium events logged as corpus events; proposals queued with full context intact. During the moratorium, the Parameter Update Proposal (#56) remains visible but locked.
+_Novelty:_ Reactive protocol manipulation under emotional pressure is the primary corpus integrity risk during drawdown — more dangerous than the drawdown itself. The moratorium inserts a mandatory gap between the impulse to intervene and the ability to act on it, without permanently blocking legitimate protocol evolution.
+
+---
+
+**[Architecture #112]: Corpus Coverage Map**
+_Concept:_ Periodic report surfacing *untested* regions of the target space — instrument classes, sectors, time horizons, question formulation types where corpus session count falls below statistical relevance threshold. Inverse of Application Discovery (#58), which surfaces where the confidence function is strong. Coverage map surfaces where it has not been tested. Delivered alongside regular analysis output; gaps flagged before they become load-bearing assumptions.
+_Novelty:_ Absence of data is as informative as presence. A confidence function that looks well-calibrated but has never been tested on commodities or forex is not a general confidence function — it is a tech-equity confidence function. The coverage map makes that distinction visible and operational before deployment decisions are made on false generality.
+
+---
+
+**[Architecture #113]: Screener Diversity Constraint Layer**
+_Concept:_ A configurable distribution constraint applied to the eligible instrument pool after the hard movement-threshold filter and before ranking. Defines minimum session allocation buckets: sector (e.g., ≥15% tech, ≥15% commodities, ≥10% forex), instrument class, time horizon band. Screener must draw proportionally across buckets — ranking optimises within each bucket, not across the entire pool unconstrained. Bucket definitions and allocation minimums are admin-configurable corpus parameters, logged as corpus events when changed.
+_Novelty:_ Separates two distinct mechanisms that naive screener design conflates: the threshold (what is eligible) and the distribution (how the eligible pool is sampled). The threshold is an operational requirement; the distribution is a research integrity requirement. Enforcing them independently prevents the operational requirement from silently consuming the research requirement.
+
+---
+
 ## Blends Skipped (Epistemological / Scope Grounds)
 
 - **Oral Tradition / Living Archive:** Narrative closure report — skipped; asset not significantly sensitive to narrative interpretation, adds unnecessary complexity
@@ -907,18 +973,73 @@ _Novelty:_ Separates two independent sources of uncertainty that the existing ar
 
 ---
 
-## Next Session Starting Point
+## Session Complete — 2026-05-31
 
-**Phase 4: Chaos Engineering** — adversarial stress-testing for anti-fragility
-- What single failure mode could corrupt the corpus irrecoverably?
-- What adversarial conditions could systematically bias the confidence function without detection?
-- What happens if the asset is unavailable for an extended period?
-- What if the Epistemological Ledger assumption turns out to be wrong at a foundational level?
-- What does Apollo look like under a sustained losing streak — system response, admin psychology, protocol integrity?
+**Running total: 121 ideas**
+**All phases complete:** Morphological Analysis, First Principles, Concept Blending, Chaos Engineering (HIRA)
 
-**Running total: 110 ideas**
-**Phases complete:** Morphological Analysis, First Principles, Concept Blending
-**Phase remaining:** Chaos Engineering (optional)
+### Phase 4 Summary — HIRA Register
+
+**Method:** Aviation SMS Hazard Identification and Risk Assessment with ATM (Avoid/Trap/Mitigate)
+**Hazards assessed:** 11
+**Initial Intolerables:** 6 (H-01, H-02, H-04, H-05, H-07, H-09, H-11)
+**Residual Intolerables:** 0
+**Accepted risks:** 2 (H-03 asset unavailability — operational mitigation underway; H-08 LLM dependency — industry trajectory)
+**New ideas generated in Phase 4:** 11 (#111–#121)
+
+### PRD Handoff — Pre-Resolved Constraints
+
+The following are carry-forward as closed decisions, not open questions:
+
+**From Usefulness Framework (session body):**
+- Decision 1: No classical falsification framework
+- Decision 2: Usefulness State Machine with 5 states (ACTIVE/DEGRADED/DORMANT/REACTIVATED/INVERTED)
+- Decision 3: Calibration as primary output; P&L as secondary validation
+- Decision 4: Financial markets as calibration domain
+- Decision 5: Dual-mode target selection (calibration-optimal / return-optimal)
+- Decision 6: No separate study design document
+- Decision 7: Psi effects treated as real and variable — axiom, not hypothesis
+
+**From HIRA Register:**
+- Anonymization-by-design (#121): dedicated unpersonalized email addresses; no PII in system
+- Bracket order protocol (#118): all trades OCO-bracketed; TP from question formulation (#47)
+- Pre-committed exit criteria (#114): defined before corpus evaluable; locked at commitment
+- Mandatory moratorium (#115): protocol changes blocked during drawdown cooling-off period
+- Admin Awareness Tier (#117): contamination as research variable, not protocol failure
+- Screener diversity constraint (#113): separate filter (threshold) from distribution (diversity)
+
+### Next Phase
+
+**→ PRD Creation** (`bmad-create-prd` or talk to John)
+
+Brainstorming corpus is the input. The PRD author should load this session file as primary reference. Usefulness Framework Decisions and HIRA pre-resolved constraints carry forward directly — do not re-open them during PRD discovery.
+
+---
+
+## Phase 4: Chaos Engineering — HIRA Register
+
+**Method:** Hazard Identification and Risk Assessment (aviation SMS model)
+**ATM sequence:** Avoid → Trap → Mitigate → residual re-score
+
+```
+Risk: IT=Intolerable TL=Tolerable AC=Acceptable
+Sev:  A=Catastrophic B=Hazardous C=Major D=Minor E=Negligible
+Lkh:  5=Frequent 4=Probable 3=Remote 2=Improbable 1=Ext.Improbable
+```
+
+| ID | Hazard | Sv | Lk | Rsk | Avoid | Trap | Mitigate | RSv | RLk | RRsk |
+|----|--------|----|----|-----|-------|------|----------|-----|-----|------|
+| H-01 | Silent systematic extraction drift (e.g. timestamp field confusion across agent version) | B | 3 | IT | Structured delimited email template; ISO 8601 timestamp in labeled field | Plausibility check layer post-extraction (asset time vs receipt time delta bounds); extraction agent version pinned + logged in provenance chain (#104); version change triggers re-validation run → #111 | Original email archived as canonical (#9,#14); provenance chain identifies affected corpus slice exactly; reinterpretation run (#96) re-extracts from source | B | 2 | TL |
+| H-02 | Confidence function poisoning via screener selection bias (systematic over-selection of one instrument class producing non-representative calibration corpus) | B | 4 | IT | Hard minimum movement threshold as explicit filter before scoring; diversity constraint layer on eligible pool — min session allocation per sector/instrument class/time horizon → #113 | Corpus coverage map of untested regions (inverse of #58) → #112; coverage gap alert when instrument class drops below min corpus share; phase advancement criteria (#109) extended to require min diversity across N instrument classes | Reinterpretation run (#96) as recovery path; domain attunement tracking (#43) detects new instrument class introduction | B | 2 | TL |
+| H-03 | Extended asset unavailability (illness, travel, loss of motivation) — single instrument offline, corpus growth halts, trading signal degrades | C | 4 | TL | — | — | — | C | 4 | TL — ACCEPTED; operational mitigation: asset recruitment underway |
+| H-04 | Sustained losing streak — financial loss + protocol abandonment under pressure (panic vs. rational exit indistinguishable without pre-commitment) | B | 4 | IT | Nil | Usefulness state machine DEGRADED early warning before threshold; pre-committed drawdown limit triggers auto-reversion to paper/minimal sizing; pre-committed exit criteria locked before corpus evaluable → #114 | Paper/minimal real sizing as default calibration-phase policy; mandatory protocol change moratorium during drawdown → #115; Epistemological Ledger (#95) frames streak as corpus data not verdict | C | 2 | AC |
+| H-05 | Blind protocol violation via ambient information leak — admin encounters target-adjacent information during open session window; unlogged contamination silently misclassifies sessions as Admin-Naive | C | 5 | IT | Prefer lower-profile instruments during pure research phase; compartment architecture (#4) + admin-blind dispatch (#87) eliminate deliberate exposure | Admin Contamination Event Log — voluntary record of target-adjacent exposure linked to session record → #116 | Extend Purity Tier (#22) with Admin Awareness Tier (Naive/Ambient/Contaminated/Directed) — contaminated sessions become stratified study category not corrupt data; Admin as Co-Practitioner (#86) study track operationalised → #117 | D | 5 | TL — residual Lk=5 by design; fully-logged contaminated sessions are a research asset |
+| H-06 | Admin internet blackout during active positions — open trades without admin oversight; market moves against position with no ability to intervene | C | 4 | TL | Restrict to bracketable instruments (OCO-supported) only during known blackout-risk periods | Pre-blackout checklist: all open positions verified to have active TP/SL before admin goes offline; max new-entry lockout if admin unreachable beyond configurable threshold; Autonomous Day Protocol (#32) frames blackout as planned state | Bracket order protocol: all trades enter with simultaneous TP/SL OCO; TP from question formulation (#47), SL at configurable risk multiple set at entry → #118; fixed fractional sizing (#50) bounds SL hit to 1–2% portfolio — pre-accepted ceiling | D | 4 | TL |
+| H-07 | Foundational epistemological assumption failure — corpus at sufficient depth produces sustained null result (VAD indistinguishable from chance across all conditions); axiom in Decision 7 challenged by own data | A | 2 | IT | Single-asset scope is partial avoid — null from one asset/methodology/domain is not field-level null; Power Analysis Gate (#28) prevents premature interpretation; pre-committed exit criteria (#114) define evaluable threshold | ACH null hypothesis tracked in register (#99); ensemble spread (#110) shows null hypothesis gaining power before it dominates; Contradiction Event protocol (#97) flags foundational challenge before silent accumulation | DORMANT state (Decision 2) — non-terminal; reactivation criteria exist; Reinterpretation Run (#96) tests alternative signal hypotheses (RVD, EBF, spontaneous impressions, admin co-sensing); corpus scientific value preserved regardless of outcome → #119 | B | 2 | TL |
+| H-08 | LLM provider dependency failure — outage, model deprecation, pricing change stalls extraction/analysis/tasking pipeline | C | 2 | AC | — | — | — | C | 2 | AC — ACCEPTED; industry trajectory (improving quality, falling cost) is natural mitigation; 70–100B local model capability expected on accessible hardware within 1–2 years, eliminating external dependency |
+| H-09 | Corpus data exposure / privacy breach — session content (psychological state, location, sleep quality, performance) and participant identity exposed to unauthorised parties | B | 3 | IT | Anonymization-by-design: dedicated unpersonalized research email addresses for all participants; no PII stored anywhere in system; asset identified by codename only; admin by role only; system has no concept of real person — only operational identifiers → #121 | Access logging on corpus reads; encryption at rest; PII-strip enforced on all export paths | Data governance framework (#72) formalises on trigger; anonymised export from day one; formal data deletion protocol on asset request | D | 2 | AC |
+| H-10 | Broker execution layer failure — IBKR outage, API rejection, position mismatch between Apollo records and broker actual state | C | 3 | TL | Market hours trading only (execution quality degrades outside); note: high-volatility events are a valid target class, not an avoid condition | Execution confirmation loop — trade logged as placed only on explicit broker confirmation; position reconciliation Apollo↔broker on configurable cadence; mismatch triggers admin alert and execution hold | Broker-agnostic layer (#51) — IBKR failure triggers manual execution fallback with full context and bracket parameters; fixed fractional sizing (#50) prevents compound exposure | D | 3 | AC |
+| H-11 | Admin psychological state long-term drift — sustained fatigue, life events, cognitive load over multi-year operation; moment-to-moment Admin State Snapshot (#59) misses slow degradation trend | B | 4 | IT | Nil | Rolling trend analysis on Admin State Snapshot data — sustained low Clarity/Energy or high Pressure over 30/90-day window flags concern before next planning session → #120 | Protocol change moratorium (#115) blocks reactive decisions during degraded states; planning agent (#74) surfaces admin state trend before major operational decisions; Epistemological Ledger (#95) dates decisions enabling retrospective review against state record | B | 2 | TL |
 
 ---
 
