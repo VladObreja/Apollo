@@ -5,7 +5,7 @@ session_topic: 'Local Semi-Sovereign LLM Architecture - Project Apollo'
 session_goals: 'Explore architectural approaches, feature design, and implementation strategies for a local-first AI system centered on a remote viewing project management MVP, with expansion paths to knowledge base and agentic web archiving capabilities'
 selected_approach: 'ai-recommended'
 techniques_used: ['morphological-analysis', 'first-principles', 'concept-blending', 'chaos-engineering-hira']
-ideas_generated: 121
+ideas_generated: 124
 context_file: ''
 session_continued: true
 continuation_date: '2026-05-31'
@@ -872,6 +872,24 @@ _Novelty:_ Separates two independent sources of uncertainty that the existing ar
 **[Architecture #111]: Extraction Field Plausibility Validation**
 _Concept:_ Post-extraction deterministic validation layer runs before any session commit. Field-level rules: asset-reported measurement time must precede email-receipt time and fall within a configurable window (default 30 days); angular/percentage values within valid range; required fields non-null. Any field failing plausibility is flagged extraction-uncertain, held in pending state, triggers correction cycle (#14). Rules are version-controlled and logged in provenance chain (#104) alongside agent version.
 _Novelty:_ Separate from #14 (LLM extraction confidence) — this is a deterministic post-hoc guard that catches systematic agent errors regardless of the agent's own internal confidence. Catches version-drift bugs before they propagate silently into the corpus.
+
+**[Architecture #122]: Parameter Registry**
+_Concept:_ A database table of measurable session parameters: codename, description, instrument scale, unit, active/inactive flag per asset. VAD, RVD, and EBF ship as default rows. Adding a new parameter is a row insertion — no code change, no redeployment. Each asset record carries an active parameter set; every task dispatched for an asset includes all currently active parameters for that asset, locked at dispatch time. Parameter set changes are logged as corpus events.
+_Novelty:_ Separates the parameter space (what can be measured) from the task space (what is measured on a given session). The architecture accommodates new measurement dimensions from the radiesthesia tradition or future research without touching the core pipeline. The corpus can accumulate data on parameters not yet under formal study simply by including them in the active set.
+
+---
+
+**[Architecture #123]: Question Template Library**
+_Concept:_ A database table of question formulation templates keyed by (parameter_type, question_class, time_horizon_band). Templates are configurable strings with variable substitution slots (ticker, threshold value, expiry date, direction). Modifying a template is a row update; adding a new question class is a row insertion. V1 ships with one working template per active parameter type — sufficient to begin. The formulation library (#47) that grows empirically and is accuracy-ranked over time is this table deepened by corpus evidence in V2. Template version is logged in the session provenance chain (#104).
+_Novelty:_ Question formulation is a data concern, not a code concern. Zero redeployment required to modify how tasks are phrased, introduce new question classes, or experiment with formulation variants. The empirical formulation ranking emerges from the same corpus that tests the measurements — the library improves as a natural byproduct of normal operations.
+
+---
+
+**[Architecture #124]: Basic Target Screener**
+_Concept:_ V1 implementation of the target generation interface. Uses yfinance to pull a configurable ticker universe (S&P 500 CSV or admin-defined watchlist). Applies two hard filters: minimum average daily volume (liquidity threshold) and minimum price movement over a trailing window (volatility floor). Eligible tickers are written to the target pool as Auto-Generated origin (#61) entries, pending admin pool authorization. Admin configures universe and thresholds; system populates without admin selection of individual tickers. Interface contract is compatible with the full Financial Target Generation Engine (#16) in V3 — the V1 screener slots behind the same interface.
+_Novelty:_ Establishes Auto-Generated target provenance from day one, ensuring the early corpus — the most data-scarce and highest-weight period — carries the cleanest epistemic origin available. The simplicity is intentional: diversity constraints (#113) and dual-mode optimization (#54) layer on in V2/V3 without modifying the interface the rest of the pipeline depends on.
+
+---
 
 **[Architecture #120]: Admin State Trend Analysis**
 _Concept:_ Rolling trend analysis on Admin State Snapshot (#59) data over configurable windows (default 30-day and 90-day). If Clarity or Energy rolling average drops below a configurable threshold, or Pressure remains High for an extended period, the system flags a sustained admin state concern — displayed prominently at the next planning session as a first-class alert, not a footnote. The admin acknowledges and continues, or triggers a voluntary operational pause. Flag events are logged as corpus events with the rolling metrics at time of flag. Not a blocker — the admin retains authority — but the system makes the trend visible before it compounds silently into a series of decisions made under diminished capacity.
