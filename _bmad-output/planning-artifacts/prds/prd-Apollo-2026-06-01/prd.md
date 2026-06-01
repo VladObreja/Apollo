@@ -22,9 +22,9 @@ The following journeys define the primary interaction loops between the Administ
 
 ### UJ-2: Asset Session & Extraction
 **Protagonists:** Jane (Asset), Local Extraction Agent
-1. **Jane** receives a templated email: *"Target ID XXXX/YYYY: Please measure the parameter of interest... PARAM: [ ], sleep quality: [ ], social status: [ ]"*.
+1. **Jane** receives a templated email: *"Target ID XXXX/YYYY: Please measure the parameter of interest... PARAM: [ ], time of measurement (UTC): [ ], sleep quality: [ ], social status: [ ]"*.
 2. Jane performs her radiesthesia measurement against the double-blind coordinate.
-3. She hits "Reply", fills in the numerical values, optionally adds natural language notes about her experience, and sends the email.
+3. She hits "Reply", fills in the numerical values and the exact time the measurement was taken (decoupling it from the email transmission timestamp for accurate environmental correlation). She optionally adds natural language notes, and sends the email.
 4. The **Local Extraction Agent** intercepts the email, parses the unstructured text, and maps it to a strict Pydantic schema.
 5. If valid, the system cryptographically seals the session and commits the extracted data to the database.
 
