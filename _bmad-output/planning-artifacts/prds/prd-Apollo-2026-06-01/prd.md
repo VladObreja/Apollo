@@ -18,11 +18,11 @@ The following journeys define the primary interaction loops between the Administ
 3. The **Apollo Worker Daemon** autonomously fetches the targets (e.g., "Gold price will increase by >9% from open to close tomorrow") based on the configured rules. It strictly enforces a **cap of 5 targets per day** to prevent cognitive and closure overload on the asset.
 4. Concurrently, the system captures an **Admin State Snapshot** (Vlad's psychological context) and logs the **Admin Awareness Tier** to monitor potential upstream telepathic contamination.
 5. The system pairs the target statement with a parameter (e.g., VAD) and generates a double-blind coordinate (e.g., `XXXX/YYYY`).
-6. A local LLM agent drafts and dispatches the tasking email to **Jane** using only the coordinate and requested parameters.
+6. A local LLM agent drafts and dispatches the tasking email to **Jane** using only the coordinate and requested parameters. **Anonymization-by-Design** is strictly enforced: dispatch occurs exclusively between unpersonalized research emails (e.g., `apollo.admin@proton.me` to `apollo.asset1@proton.me`).
 
 ### UJ-2: Asset Session & Extraction
 **Protagonists:** Jane (Asset), Local Extraction Agent
-1. **Jane** receives a templated email: *"Target ID XXXX/YYYY: Please measure the parameter of interest... PARAM: [ ], time of measurement (UTC): [ ], sleep quality: [ ], social status: [ ]"*.
+1. **Jane** receives a templated email: *"Target ID XXXX/YYYY: Please measure the parameter of interest... PARAM: [ ], time of measurement (UTC): [ ], location: [ ], sleep quality: [ ], psychological state: [ ], Social Field (Isolated/Familiar/Unfamiliar): [ ]"*.
 2. Jane performs her radiesthesia measurement against the double-blind coordinate.
 3. She hits "Reply", fills in the numerical values and the exact time the measurement was taken (decoupling it from the email transmission timestamp for accurate environmental correlation). She optionally adds natural language notes, and sends the email.
 4. The **Local Extraction Agent** intercepts the email, parses the unstructured text, and maps it to a strict Pydantic schema.
@@ -70,6 +70,15 @@ Missing sessions or systemic outages (e.g., failure to fetch a market price at t
 
 **NFR-6: UTC-Native Time Architecture**
 All system events, market closure deadlines, and environmental correlative timestamps must be recorded natively in UTC to prevent temporal synchronization errors and preserve chronological integrity.
+
+**NFR-7: Session Provenance Chain**
+Every session record must carry an immutable, append-only provenance chain. Every system process that touches the record (task dispatched, extraction LLM agent version, extraction confidence, cryptographic seal hash) must be logged with a timestamp and the system's Epistemological Ledger belief state at the time of action.
+
+**NFR-8: Data Registry Architecture**
+The database format must isolate concerns into specific registries:
+- **Minimal Asset Registry:** Stores only operational identifiers and active/inactive status. Asset performance metrics are ALWAYS derived dynamically at query time from the corpus, never stored as mutable scores.
+- **Parameter Registry:** A table defining VAD, RVD, EBF, etc., separating what can be measured from the task itself.
+- **Question Template Library:** A table of variable-substitution strings mapping parameter types and time horizons, resolving question formulation upstream.
 
 ## Target & Parameter Mechanics
 

@@ -9,3 +9,17 @@
 
 ## Medium Findings
 - **Archival-Grade Corpus Preservation & Epistemological Ledger (#75, #95):** We have the "Immutable Ledger" NFR, which covers the data persistence, but we should make sure the "Epistemological Ledger" (versioning the analysis frameworks) is explicitly stated.
+
+---
+
+## Audit Pass 2: Maximum Effort Reconciliation (Database & Email)
+
+**Verdict:** The Brainstorming document prescribed highly specific field formats that the original PRD generalized. These have now been explicitly reconciled into the PRD.
+
+### Reconciled Email Format
+- **Anonymization-by-Design (#121):** Email dispatch must occur strictly between unpersonalized research emails (e.g., `apollo.asset1@...`).
+- **Structured Envelope Fields (#9, #67):** The PRD originally summarized these as "sleep quality, social status." This has been corrected to the exact Brainstorm schema: `time of measurement (UTC)`, `location`, `sleep quality`, `psychological state`, and `Social Field (Isolated/Familiar/Unfamiliar)`.
+
+### Reconciled Database Format
+- **Session Provenance Chain (#104):** Appended as NFR-7. The database must permanently log every touch (task dispatch, extraction agent version, seal hash) alongside the Epistemological Ledger state.
+- **Data Registry Architecture (#122, #123, #13):** Appended as NFR-8. Explicitly defines the Parameter Registry, Question Template Library, and Minimal Asset Registry, enforcing the rule that Asset performance is derived at query time, not stored mutably.
