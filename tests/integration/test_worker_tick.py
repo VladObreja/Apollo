@@ -16,6 +16,7 @@ import pytest
 
 from apollo.db.models import CorpusRecord
 from apollo.domain.types import TargetStatus
+from tests.utils import FakeIMAPClient, FakeSMTPClient
 
 _COORD_RE = re.compile(r"^[0-9A-F]{4}/[0-9A-F]{4}$")
 
@@ -63,21 +64,26 @@ class TestWorkerTickIntegration:
         db_session,
         patched_db_url,  # type: ignore[no-untyped-def]
     ) -> None:
-        """Basic tick: 5 pending records → all 5 get queued with coordinates."""
+        """Basic tick: 5 pending records → all 5 get coordinates (may be queued or dispatched)."""
         _seed_records(db_session, count=5)
 
         from apollo.services.worker import tick
 
-        tick()
+        tick(smtp_client=FakeSMTPClient(), imap_client=FakeIMAPClient([]))
 
         db_session.expire_all()
-        queued = (
+        # Records may have been dispatched by Phase 2; check coordinates were assigned
+        processed = (
             db_session.query(CorpusRecord)
-            .filter(CorpusRecord.status == TargetStatus.QUEUED.value)
+            .filter(
+                CorpusRecord.status.in_(
+                    [TargetStatus.QUEUED.value, TargetStatus.DISPATCHED.value]
+                )
+            )
             .all()
         )
-        assert len(queued) == 5
-        for record in queued:
+        assert len(processed) == 5
+        for record in processed:
             assert record.double_blind_coordinate is not None
             assert _COORD_RE.match(record.double_blind_coordinate), (
                 f"Invalid coord format: {record.double_blind_coordinate}"
@@ -101,16 +107,23 @@ class TestWorkerTickIntegration:
 
         from apollo.services.worker import tick
 
-        tick()
+        tick(smtp_client=FakeSMTPClient(), imap_client=FakeIMAPClient([]))
 
         db_session.expire_all()
-        newly_queued = (
+        # Records seeded as pending may be queued or dispatched (Phase 2 runs with FakeSMTP)
+        newly_processed = (
             db_session.query(CorpusRecord)
-            .filter(CorpusRecord.status == TargetStatus.QUEUED.value)
-            .all()
+            .filter(
+                CorpusRecord.status.in_(
+                    [TargetStatus.QUEUED.value, TargetStatus.DISPATCHED.value]
+                ),
+                CorpusRecord.queued_at.isnot(None),
+            )
+            .count()
         )
-        assert len(newly_queued) == 3, (
-            f"Expected 3 queued (cap=5, 2 already dispatched), got {len(newly_queued)}"
+        # 5 cap total, 2 already dispatched → 3 slots used for newly pending records
+        assert newly_processed == 5, (
+            f"Expected 5 total (2 existing + 3 new), got {newly_processed}"
         )
 
     def test_tick_is_idempotent(
@@ -123,25 +136,35 @@ class TestWorkerTickIntegration:
 
         from apollo.services.worker import tick
 
-        tick()
+        tick(smtp_client=FakeSMTPClient(), imap_client=FakeIMAPClient([]))
 
         db_session.expire_all()
+        # After first tick: all 3 are processed (queued or dispatched)
         after_first = (
             db_session.query(CorpusRecord)
-            .filter(CorpusRecord.status == TargetStatus.QUEUED.value)
+            .filter(
+                CorpusRecord.status.in_(
+                    [TargetStatus.QUEUED.value, TargetStatus.DISPATCHED.value]
+                )
+            )
             .count()
         )
         assert after_first == 3
 
-        tick()
+        tick(smtp_client=FakeSMTPClient(), imap_client=FakeIMAPClient([]))
 
         db_session.expire_all()
+        # After second tick: still 3 (no new pending records to claim)
         after_second = (
             db_session.query(CorpusRecord)
-            .filter(CorpusRecord.status == TargetStatus.QUEUED.value)
+            .filter(
+                CorpusRecord.status.in_(
+                    [TargetStatus.QUEUED.value, TargetStatus.DISPATCHED.value]
+                )
+            )
             .count()
         )
-        assert after_second == 3, "Second tick must not claim already-queued records"
+        assert after_second == 3, "Second tick must not claim already-processed records"
 
     def test_tick_skips_records_not_yet_available(
         self,
@@ -158,16 +181,21 @@ class TestWorkerTickIntegration:
 
         from apollo.services.worker import tick
 
-        tick()
+        tick(smtp_client=FakeSMTPClient(), imap_client=FakeIMAPClient([]))
 
         db_session.expire_all()
-        queued = (
+        # Records may be queued or dispatched (Phase 2 runs with FakeSMTP)
+        processed = (
             db_session.query(CorpusRecord)
-            .filter(CorpusRecord.status == TargetStatus.QUEUED.value)
-            .all()
+            .filter(
+                CorpusRecord.status.in_(
+                    [TargetStatus.QUEUED.value, TargetStatus.DISPATCHED.value]
+                )
+            )
+            .count()
         )
-        assert len(queued) == 2, (
-            f"Only 2 records should be claimed (others still in Age-In window), got {len(queued)}"
+        assert processed == 2, (
+            f"Only 2 records should be claimed (others still in Age-In window), got {processed}"
         )
         pending = (
             db_session.query(CorpusRecord)
@@ -193,7 +221,7 @@ class TestWorkerTickIntegration:
 
         from apollo.services.worker import tick
 
-        tick()
+        tick(smtp_client=FakeSMTPClient(), imap_client=FakeIMAPClient([]))
 
         db_session.expire_all()
         queued = (
@@ -213,15 +241,20 @@ class TestWorkerTickIntegration:
 
         from apollo.services.worker import tick
 
-        tick()
+        tick(smtp_client=FakeSMTPClient(), imap_client=FakeIMAPClient([]))
 
         db_session.expire_all()
-        queued = (
+        # Check coordinate uniqueness across all processed records (queued or dispatched)
+        processed = (
             db_session.query(CorpusRecord)
-            .filter(CorpusRecord.status == TargetStatus.QUEUED.value)
+            .filter(
+                CorpusRecord.status.in_(
+                    [TargetStatus.QUEUED.value, TargetStatus.DISPATCHED.value]
+                )
+            )
             .all()
         )
-        coords = [r.double_blind_coordinate for r in queued]
+        coords = [r.double_blind_coordinate for r in processed]
         assert len(coords) == len(set(coords)), (
             f"Duplicate coordinates detected: {coords}"
         )
@@ -238,12 +271,18 @@ class TestWorkerTickIntegration:
         # If trigger is still blanket-immutable this will raise an exception
         from apollo.services.worker import tick
 
-        tick()  # Should not raise
+        tick(
+            smtp_client=FakeSMTPClient(), imap_client=FakeIMAPClient([])
+        )  # Should not raise
 
         db_session.expire_all()
         record = db_session.query(CorpusRecord).first()
         assert record is not None
-        assert record.status == TargetStatus.QUEUED.value
+        # Status should be queued or dispatched (Phase 2 may run with FakeSMTP)
+        assert record.status in (
+            TargetStatus.QUEUED.value,
+            TargetStatus.DISPATCHED.value,
+        )
 
     def test_immutability_trigger_still_blocks_identity_update(
         self,

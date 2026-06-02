@@ -32,6 +32,7 @@ from apollo.domain.types import TargetStatus
 from apollo.services.dispatch import SMTPClientImpl
 from apollo.services.target import TargetService
 from apollo.services.worker import tick
+from tests.utils import FakeIMAPClient
 
 # ---------------------------------------------------------------------------
 # Mailpit API helpers
@@ -206,7 +207,7 @@ class TestEpic1CoordinateGeneration:
         config = _make_config()
         TargetService.create_target_configuration(config)
 
-        tick(smtp_client=FakeSMTPClient())
+        tick(smtp_client=FakeSMTPClient(), imap_client=FakeIMAPClient([]))
 
         db_session.expire_all()
         record = db_session.query(CorpusRecord).filter_by(id=config.id).first()
@@ -228,7 +229,7 @@ class TestEpic1CoordinateGeneration:
                 _make_config(statement=f"Unique target {i}")
             )
 
-        tick(smtp_client=FakeSMTPClient())
+        tick(smtp_client=FakeSMTPClient(), imap_client=FakeIMAPClient([]))
 
         db_session.expire_all()
         records = db_session.query(CorpusRecord).all()
@@ -247,7 +248,7 @@ class TestEpic1CoordinateGeneration:
         config = _make_config(age_in_hours=24)
         TargetService.create_target_configuration(config)
 
-        tick(smtp_client=FakeSMTPClient())
+        tick(smtp_client=FakeSMTPClient(), imap_client=FakeIMAPClient([]))
 
         db_session.expire_all()
         record = db_session.query(CorpusRecord).filter_by(id=config.id).first()
@@ -268,7 +269,7 @@ class TestEpic1EmailDispatch:
         """configure → tick → exactly one email delivered to Mailpit inbox."""
         TargetService.create_target_configuration(_make_config())
 
-        tick(smtp_client=mailpit_smtp)
+        tick(smtp_client=mailpit_smtp, imap_client=FakeIMAPClient([]))
 
         messages = _list_messages()
         assert len(messages) == 1, f"Expected 1 email in Mailpit, got {len(messages)}"
@@ -280,7 +281,7 @@ class TestEpic1EmailDispatch:
         from apollo.config import settings
 
         TargetService.create_target_configuration(_make_config())
-        tick(smtp_client=mailpit_smtp)
+        tick(smtp_client=mailpit_smtp, imap_client=FakeIMAPClient([]))
 
         messages = _list_messages()
         assert len(messages) == 1
@@ -294,7 +295,7 @@ class TestEpic1EmailDispatch:
     ) -> None:
         """Email subject must contain the exact double-blind coordinate."""
         TargetService.create_target_configuration(_make_config())
-        tick(smtp_client=mailpit_smtp)
+        tick(smtp_client=mailpit_smtp, imap_client=FakeIMAPClient([]))
 
         db_session.expire_all()
         record = (
@@ -317,7 +318,7 @@ class TestEpic1EmailDispatch:
     ) -> None:
         """Coordinate in the email body exactly matches the DB double_blind_coordinate."""
         TargetService.create_target_configuration(_make_config())
-        tick(smtp_client=mailpit_smtp)
+        tick(smtp_client=mailpit_smtp, imap_client=FakeIMAPClient([]))
 
         db_session.expire_all()
         record = (
@@ -341,7 +342,7 @@ class TestEpic1EmailDispatch:
         TargetService.create_target_configuration(
             _make_config(statement=secret_statement)
         )
-        tick(smtp_client=mailpit_smtp)
+        tick(smtp_client=mailpit_smtp, imap_client=FakeIMAPClient([]))
 
         messages = _list_messages()
         assert len(messages) == 1
@@ -355,7 +356,7 @@ class TestEpic1EmailDispatch:
     ) -> None:
         """Email body must contain all six measurement prompt fields from extraction.jinja."""
         TargetService.create_target_configuration(_make_config())
-        tick(smtp_client=mailpit_smtp)
+        tick(smtp_client=mailpit_smtp, imap_client=FakeIMAPClient([]))
 
         messages = _list_messages()
         assert len(messages) == 1
@@ -376,7 +377,7 @@ class TestEpic1EmailDispatch:
     ) -> None:
         """Email body must include the parameter name (e.g. 'rvd')."""
         TargetService.create_target_configuration(_make_config(parameter="rvd"))
-        tick(smtp_client=mailpit_smtp)
+        tick(smtp_client=mailpit_smtp, imap_client=FakeIMAPClient([]))
 
         messages = _list_messages()
         body = _message_body(messages[0]["ID"])
@@ -388,7 +389,7 @@ class TestEpic1EmailDispatch:
         """After dispatch: record is 'dispatched' with non-null dispatched_at (UTC) and agent version."""
         TargetService.create_target_configuration(_make_config())
         before = datetime.now(UTC)
-        tick(smtp_client=mailpit_smtp)
+        tick(smtp_client=mailpit_smtp, imap_client=FakeIMAPClient([]))
         after = datetime.now(UTC)
 
         db_session.expire_all()
@@ -424,7 +425,7 @@ class TestEpic1EndToEnd:
                 )
             )
 
-        tick(smtp_client=mailpit_smtp)
+        tick(smtp_client=mailpit_smtp, imap_client=FakeIMAPClient([]))
 
         messages = _list_messages()
         assert len(messages) == 3, f"Expected 3 emails, got {len(messages)}"
@@ -445,7 +446,7 @@ class TestEpic1EndToEnd:
         """A target with age_in_hours=24 must produce zero emails during the current tick."""
         TargetService.create_target_configuration(_make_config(age_in_hours=24))
 
-        tick(smtp_client=mailpit_smtp)
+        tick(smtp_client=mailpit_smtp, imap_client=FakeIMAPClient([]))
 
         messages = _list_messages()
         assert len(messages) == 0, (
@@ -458,10 +459,10 @@ class TestEpic1EndToEnd:
         """Running tick twice must not re-send an already-dispatched email."""
         TargetService.create_target_configuration(_make_config())
 
-        tick(smtp_client=mailpit_smtp)
+        tick(smtp_client=mailpit_smtp, imap_client=FakeIMAPClient([]))
         _clear_mailpit()
 
-        tick(smtp_client=mailpit_smtp)
+        tick(smtp_client=mailpit_smtp, imap_client=FakeIMAPClient([]))
 
         messages = _list_messages()
         assert len(messages) == 0, (
@@ -477,7 +478,7 @@ class TestEpic1EndToEnd:
                 _make_config(statement=f"Daily cap test target {i}")
             )
 
-        tick(smtp_client=mailpit_smtp)
+        tick(smtp_client=mailpit_smtp, imap_client=FakeIMAPClient([]))
 
         messages = _list_messages()
         assert len(messages) <= 5, (
@@ -511,7 +512,7 @@ class TestEpic1EndToEnd:
                 _make_config(statement=f"Gated target {i}", age_in_hours=48)
             )
 
-        tick(smtp_client=mailpit_smtp)
+        tick(smtp_client=mailpit_smtp, imap_client=FakeIMAPClient([]))
 
         messages = _list_messages()
         assert len(messages) == 2, (
@@ -537,7 +538,7 @@ class TestEpic1EndToEnd:
         for cfg in configs:
             TargetService.create_target_configuration(cfg)
 
-        tick(smtp_client=mailpit_smtp)
+        tick(smtp_client=mailpit_smtp, imap_client=FakeIMAPClient([]))
 
         messages = _list_messages()
         assert len(messages) == 2

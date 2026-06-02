@@ -17,3 +17,11 @@
 
 - Deduplicate FakeSMTPClient across test files [tests/integration/test_worker_dispatch.py] â€” deferred, pre-existing
 - db_session fixture rollback teardown is a no-op [tests/integration/test_worker_dispatch.py] â€” deferred, pre-existing
+
+## Deferred from: code review of 2-1-inbound-email-ingestion-parsing (2026-06-02)
+
+- IMAP connection is opened and closed on every fetch_unseen_emails [services/email_poller.py]
+- imap_use_ssl = False default has no security warning [src/apollo/config.py]
+- FakeIMAPClient reused across tick calls causes all emails to be re-delivered [tests/utils.py]
+
+- Prompt injection via unbounded email_body — The template inserts Asset-controlled email content verbatim into the LLM instruction context with autoescape=False. — deferred, We accept the risk of prompt injection from Assets for now. [_bmad-output/implementation-artifacts/2-1-inbound-email-ingestion-parsing.md]

@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: '2026-06-02T09:31:53+03:00'
-last_updated: '2026-06-02T17:51:00+03:00'
+last_updated: '2026-06-02T21:30:00+03:00'
 project: Apollo
 project_key: NOKEY
 tracking_system: file-system
@@ -48,8 +48,8 @@ development_status:
   1-3-task-email-dispatch: done
   1-4-epic-1-tech-debt-and-infrastructure: done
   epic-1-retrospective: optional
-  epic-2: backlog
-  2-1-inbound-email-ingestion-parsing: backlog
+  epic-2: in-progress
+  2-1-inbound-email-ingestion-parsing: done
   2-2-epistemological-sealing-ledger-commit-happy-path: backlog
   2-3-quarantine-clarification-loop-exception-path: backlog
   2-4-environmental-context-fingerprinting: backlog

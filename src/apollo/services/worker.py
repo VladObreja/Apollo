@@ -19,11 +19,22 @@ from jinja2 import Environment, FileSystemLoader
 
 from apollo.db.models import CorpusRecord
 from apollo.db.session import get_session_factory
+from apollo.domain.exceptions import ExtractionSchemaError
 from apollo.services.dispatch import (
     AGENT_VERSION,
     DispatchService,
     SMTPClient,
     SMTPClientImpl,
+)
+from apollo.services.email_poller import (
+    EmailPollerService,
+    IMAPClient,
+    IMAPClientImpl,
+)
+from apollo.services.extract import (
+    ExtractionService,
+    LLMClient,
+    OllamaClientImpl,
 )
 from apollo.services.queue import DAILY_TARGET_CAP, QueueService, count_available_slots
 
@@ -32,8 +43,12 @@ logger = logging.getLogger(__name__)
 _TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 
 
-def tick(smtp_client: SMTPClient | None = None) -> None:
-    """Execute one worker tick: claim pending targets, assign coordinates, dispatch emails.
+def tick(
+    smtp_client: SMTPClient | None = None,
+    llm_client: LLMClient | None = None,
+    imap_client: IMAPClient | None = None,
+) -> None:
+    """Execute one worker tick: claim targets, dispatch emails, extract replies.
 
     Steps:
         Phase 1 — Coordinate Assignment (pending → queued):
@@ -49,16 +64,37 @@ def tick(smtp_client: SMTPClient | None = None) -> None:
             8. On success: mark dispatched (individual transaction per record).
             9. On SMTP failure: log error, leave record in 'queued', continue.
 
+        Phase 3 — Email Ingestion & Extraction (dispatched, reply received):
+            10. Poll IMAP for unseen Asset reply emails.
+            11. Match each email to a dispatched record by coordinate.
+            12. Store raw email bytes on matched record (durable before LLM call).
+            13. For each match: call Ollama LLM with ExtractionResultSchema schema.
+            14. On ExtractionSchemaError: log, leave record dispatched (Story 2.3 quarantines).
+            15. On success: log result (Story 2.2 seals the record).
+
     Args:
-        smtp_client: Optional SMTP client for dependency injection in tests.
-                     If None, creates SMTPClientImpl(settings) at runtime.
+        smtp_client: Optional SMTP client (DI for tests). Default: SMTPClientImpl.
+        llm_client: Optional LLM client (DI for tests). Default: OllamaClientImpl.
+        imap_client: Optional IMAP client (DI for tests). Default: IMAPClientImpl.
 
     No in-memory queue state is maintained between ticks.
     """
-    if smtp_client is None:
-        from apollo.config import settings as _settings
+    from apollo.config import settings as _settings
 
+    if smtp_client is None:
         smtp_client = SMTPClientImpl(_settings)
+
+    if llm_client is None:
+        llm_client = OllamaClientImpl(
+            _settings.ollama_base_url,
+            _settings.ollama_model_digest,
+            _settings.ollama_timeout_seconds,
+        )
+
+    if imap_client is None:
+        imap_client = IMAPClientImpl(_settings)
+
+    env = Environment(loader=FileSystemLoader(str(_TEMPLATES_DIR)), autoescape=False)
 
     SessionFactory = get_session_factory()
 
@@ -98,9 +134,6 @@ def tick(smtp_client: SMTPClient | None = None) -> None:
     # ------------------------------------------------------------------
     # Phase 2: queued → dispatched
     # ------------------------------------------------------------------
-    env = Environment(loader=FileSystemLoader(str(_TEMPLATES_DIR)), autoescape=False)
-
-    from apollo.config import settings as _settings
 
     with SessionFactory() as read_session:
         queued = DispatchService.fetch_queued_for_dispatch(read_session)
@@ -149,5 +182,49 @@ def tick(smtp_client: SMTPClient | None = None) -> None:
             extra={
                 "dispatched_count": dispatched_count,
                 "failed_count": failed_count,
+            },
+        )
+
+    # ------------------------------------------------------------------
+    # Phase 3: email ingestion & extraction (dispatched → extraction attempt)
+    # ------------------------------------------------------------------
+    with SessionFactory() as read_session:
+        matched_pairs = EmailPollerService.fetch_new_session_emails(
+            read_session, SessionFactory, imap_client
+        )
+
+    extraction_success = 0
+    extraction_failed = 0
+
+    for record, raw_bytes in matched_pairs:
+        body = EmailPollerService.parse_email_body(raw_bytes)
+        try:
+            _result = ExtractionService.extract(record, body, llm_client, env)
+            extraction_success += 1
+            logger.info(
+                "apollo.worker.tick: extraction succeeded",
+                extra={"record_id": str(record.id)},
+            )
+            # Story 2.2: SealingService.seal(record, raw_bytes, _result) goes here
+        except ExtractionSchemaError as exc:
+            extraction_failed += 1
+            logger.error(
+                "apollo.worker.tick: extraction failed after retry",
+                extra={"record_id": str(record.id), "error": str(exc)},
+            )
+            # Story 2.3: QuarantineService.quarantine(...) goes here
+        except Exception as exc:
+            extraction_failed += 1
+            logger.error(
+                "apollo.worker.tick: extraction crashed unexpectedly",
+                extra={"record_id": str(record.id), "error": str(exc)},
+            )
+
+    if matched_pairs:
+        logger.info(
+            "apollo.worker.tick: extraction phase complete",
+            extra={
+                "success": extraction_success,
+                "failed": extraction_failed,
             },
         )

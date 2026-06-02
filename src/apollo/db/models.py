@@ -11,7 +11,7 @@ a1b2c3d4e5f6). Core identity columns remain permanently immutable.
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, Integer, String
+from sqlalchemy import Boolean, DateTime, Integer, LargeBinary, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, MappedColumn, mapped_column
 
@@ -78,4 +78,12 @@ class CorpusRecord(Base):
     )
     dispatch_agent_version: MappedColumn[str | None] = mapped_column(
         String, nullable=True
+    )
+
+    # Email ingestion columns (set on dispatched → extraction attempt, Story 2.1)
+    raw_email_bytes: MappedColumn[bytes | None] = mapped_column(
+        LargeBinary, nullable=True
+    )
+    received_at: MappedColumn[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )

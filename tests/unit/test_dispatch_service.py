@@ -231,6 +231,86 @@ class TestSettingsDefaults:
                 if v is not None:
                     os.environ[k] = v
 
+    def test_imap_defaults_are_set(self) -> None:
+        """Settings must have IMAP fields with Proton Bridge defaults."""
+        import os
+
+        imap_vars = [
+            "IMAP_HOST",
+            "IMAP_PORT",
+            "IMAP_PASSWORD",
+            "IMAP_MAILBOX",
+            "IMAP_USE_SSL",
+        ]
+        saved = {k: os.environ.pop(k, None) for k in imap_vars}
+        
+        # We MUST provide both required fields
+        saved_user = os.environ.get("IMAP_USERNAME")
+        os.environ["IMAP_USERNAME"] = "test_user@proton.me"
+        saved_digest = os.environ.get("OLLAMA_MODEL_DIGEST")
+        os.environ["OLLAMA_MODEL_DIGEST"] = "sha256:dummy"
+        
+        try:
+            from apollo.config import Settings
+
+            s = Settings()
+            assert s.imap_host == "127.0.0.1"
+            assert s.imap_port == 1143
+            assert s.imap_mailbox == "INBOX"
+            assert s.imap_use_ssl is False
+        finally:
+            for k, v in saved.items():
+                if v is not None:
+                    os.environ[k] = v
+                else:
+                    os.environ.pop(k, None)
+            
+            if saved_user is not None:
+                os.environ["IMAP_USERNAME"] = saved_user
+            else:
+                os.environ.pop("IMAP_USERNAME", None)
+            if saved_digest is not None:
+                os.environ["OLLAMA_MODEL_DIGEST"] = saved_digest
+            else:
+                os.environ.pop("OLLAMA_MODEL_DIGEST", None)
+
+    def test_ollama_defaults_are_set(self) -> None:
+        """Settings must have Ollama fields with sensible defaults."""
+        import os
+
+        ollama_vars = [
+            "OLLAMA_BASE_URL",
+            "OLLAMA_TIMEOUT_SECONDS",
+        ]
+        saved = {k: os.environ.pop(k, None) for k in ollama_vars}
+        
+        # We MUST provide both required fields
+        saved_user = os.environ.get("IMAP_USERNAME")
+        os.environ["IMAP_USERNAME"] = "test_user@proton.me"
+        saved_digest = os.environ.get("OLLAMA_MODEL_DIGEST")
+        os.environ["OLLAMA_MODEL_DIGEST"] = "sha256:dummy"
+        
+        try:
+            from apollo.config import Settings
+
+            s = Settings()
+            assert s.ollama_base_url == "http://localhost:11434"
+            assert s.ollama_timeout_seconds == 60
+        finally:
+            for k, v in saved.items():
+                if v is not None:
+                    os.environ[k] = v
+                else:
+                    os.environ.pop(k, None)
+            if saved_digest is not None:
+                os.environ["OLLAMA_MODEL_DIGEST"] = saved_digest
+            else:
+                os.environ.pop("OLLAMA_MODEL_DIGEST", None)
+            if saved_user is not None:
+                os.environ["IMAP_USERNAME"] = saved_user
+            else:
+                os.environ.pop("IMAP_USERNAME", None)
+
 
 # ---------------------------------------------------------------------------
 # Worker tick dispatch tests
@@ -270,7 +350,9 @@ class TestWorkerTickDispatch:
                 fresh_record.status = "queued"
                 mock_session.get.return_value = fresh_record
 
-                tick(smtp_client=fake_smtp)
+                from tests.utils import FakeIMAPClient
+
+                tick(smtp_client=fake_smtp, imap_client=FakeIMAPClient([]))
 
                 assert fake_smtp._call_count == 2
                 assert len(fake_smtp.sent) == 1

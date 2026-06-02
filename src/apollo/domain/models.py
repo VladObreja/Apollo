@@ -1,7 +1,7 @@
 from datetime import datetime, UTC
-from typing import Optional
+from typing import Literal, Optional
 from uuid import UUID, uuid4
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class TargetStatement(BaseModel):
@@ -60,4 +60,77 @@ class TargetConfiguration(BaseModel):
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         description="Creation timestamp in UTC.",
+    )
+
+
+class ExtractionResultSchema(BaseModel):
+    """LLM-extracted measurements from an Asset reply email.
+
+    All fields carry detailed descriptions because Ollama uses them
+    (via model_json_schema()) to understand what to extract from the
+    unstructured email body. No field may use Any or be untyped.
+    """
+
+    param_value: float = Field(
+        ge=0,
+        le=100,
+        description=(
+            "The Asset's primary numerical measurement for the requested parameter "
+            "(e.g., VAD, RVD, EBF), on a 0–100 scale. This is the value from the "
+            "'PARAM (...)' line in the email reply."
+        ),
+    )
+    measurement_timestamp: datetime | None = Field(
+        default=None,
+        description=(
+            "The exact UTC datetime when the Asset performed the measurement. "
+            "Extract from the 'Time of measurement (UTC)' field. "
+            "Format as ISO-8601 (e.g., '2026-06-02T14:30:00Z')."
+        ),
+    )
+
+    @field_validator("measurement_timestamp")
+    def validate_tz(cls, v: datetime | None) -> datetime | None:
+        if v is not None and v.tzinfo is None:
+            raise ValueError("measurement_timestamp must be timezone-aware (UTC)")
+        return v
+    asset_location: str | None = Field(
+        default=None,
+        description=(
+            "The Asset's physical location during the measurement session. "
+            "Extract verbatim from the 'Location' field."
+        ),
+    )
+    sleep_quality: float | None = Field(
+        default=None,
+        ge=0,
+        le=100,
+        description=(
+            "The Asset's self-reported sleep quality on a 0–100 scale. "
+            "Extract from the 'Sleep quality (0–100)' field. Return null if missing."
+        ),
+    )
+    psychological_state: float | None = Field(
+        default=None,
+        ge=0,
+        le=100,
+        description=(
+            "The Asset's self-reported psychological state on a 0–100 scale. "
+            "Extract from the 'Psychological state (0–100)' field. Return null if missing."
+        ),
+    )
+    social_field: Literal["Isolated", "Familiar", "Unfamiliar"] | None = Field(
+        default=None,
+        description=(
+            "The Asset's social context during measurement. Must be exactly one of: "
+            "'Isolated', 'Familiar', or 'Unfamiliar'. "
+            "Extract from the 'Social Field' line. Return null if missing or unclear."
+        ),
+    )
+    asset_notes: str | None = Field(
+        default=None,
+        description=(
+            "Any additional qualitative notes or observations written by the Asset "
+            "beyond the structured fields."
+        ),
     )

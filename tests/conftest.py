@@ -6,7 +6,12 @@ without requiring the package to be installed in the test environment.
 """
 
 import sys
+import os
 from pathlib import Path
+
+# Provide default env vars so config validation passes during test collection
+os.environ.setdefault("IMAP_USERNAME", "test_user@proton.me")
+os.environ.setdefault("OLLAMA_MODEL_DIGEST", "sha256:test_digest")
 
 # Make `src/apollo` importable without `pip install -e .`
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
