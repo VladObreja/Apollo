@@ -18,13 +18,23 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 import os  # noqa: E402
 import sys  # noqa: E402
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
+
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+)
 
 from apollo.db.models import Base  # noqa: E402
 from apollo.config import settings  # noqa: E402
 
 target_metadata = Base.metadata
-config.set_main_option("sqlalchemy.url", settings.database_url)
+
+# Only set URL from settings if the caller hasn't already provided one.
+# This allows test fixtures (e.g. testcontainers) to supply their own URL
+# via alembic_cfg.set_main_option() without being overridden here.
+_ALEMBIC_INI_PLACEHOLDER = "driver://user:pass@localhost/dbname"
+_current_url = config.get_main_option("sqlalchemy.url")
+if not _current_url or _current_url == _ALEMBIC_INI_PLACEHOLDER:
+    config.set_main_option("sqlalchemy.url", settings.database_url)
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -70,9 +80,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()
