@@ -160,7 +160,7 @@ uv add --dev ruff mypy pytest testcontainers
 ### Naming Patterns
 
 **Database Naming Conventions:**
-- Tables: Plural, `snake_case` (e.g., `corpus_records`, `quarantine_records`).
+- Tables: Singular, `snake_case` (e.g., `corpus_record`, `quarantine_record`).
 - Columns: `snake_case` (e.g., `raw_hash`, `target_id`).
 - Foreign Keys: `table_name_id` (e.g., `asset_id`).
 
@@ -195,7 +195,7 @@ uv add --dev ruff mypy pytest testcontainers
 ### Process Patterns
 
 **Error Handling Patterns:**
-- Never silence `ValidationError` from Pydantic. Catch it, log the raw extraction attempt to the `quarantine_records` table, and release the DB lock so the Clarification Agent can pick it up.
+- Never silence `ValidationError` from Pydantic. Catch it, log the raw extraction attempt to the `quarantine_record` table, and release the DB lock so the Clarification Agent can pick it up.
 
 ### Enforcement Guidelines
 
@@ -253,7 +253,7 @@ Apollo/
 │       │   └── types.py   # Enums and aliases
 │       ├── db/            # SQLAlchemy & Postgres
 │       │   ├── session.py # Engine and session management
-│       │   ├── models.py  # Tables: corpus_records, quarantine_records
+│       │   ├── models.py  # Tables: corpus_record, quarantine_record
 │       │   ├── seeds/     # Epistemological Epoch definitions
 │       │   └── alembic/   # Schema migrations
 │       ├── services/      # Application Logic & CompartmentGuards
@@ -284,7 +284,7 @@ Apollo/
 - **The MCP Bouncer Boundary:** Code in `src/apollo/mcp/` cannot import from `db/`. It must explicitly route all requests through `src/apollo/services/` which enforces the double-blind `CompartmentGuards`.
 
 **Data Boundaries:**
-- **The Quarantine Boundary:** `quarantine_records` acts as an isolating buffer table. The primary `worker.py` daemon explicitly ignores this table, preventing corrupted data from entering the calibration cycle.
+- **The Quarantine Boundary:** `quarantine_record` acts as an isolating buffer table. The primary `worker.py` daemon explicitly ignores this table, preventing corrupted data from entering the calibration cycle.
 
 ### Requirements to Structure Mapping
 

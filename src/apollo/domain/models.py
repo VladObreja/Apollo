@@ -5,7 +5,9 @@ from pydantic import BaseModel, Field
 
 
 class TargetStatement(BaseModel):
-    statement: str = Field(description="The natural language description of the target.")
+    statement: str = Field(
+        description="The natural language description of the target."
+    )
 
 
 class TargetParameter(BaseModel):

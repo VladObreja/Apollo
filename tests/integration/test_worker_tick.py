@@ -13,9 +13,6 @@ import re
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
-from testcontainers.postgres import PostgresContainer  # type: ignore[import-untyped]
 
 from apollo.db.models import CorpusRecord
 from apollo.domain.types import TargetStatus
@@ -26,66 +23,6 @@ _COORD_RE = re.compile(r"^[0-9A-F]{4}/[0-9A-F]{4}$")
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
-
-
-@pytest.fixture(scope="module")
-def postgres_container():  # type: ignore[no-untyped-def]
-    """Spin up a real Postgres container for the test module."""
-    with PostgresContainer("postgres:16-alpine") as pg:
-        yield pg
-
-
-@pytest.fixture(scope="module")
-def db_engine(postgres_container: PostgresContainer):  # type: ignore[no-untyped-def]
-    """Create engine + run all Alembic migrations against the container."""
-    db_url = postgres_container.get_connection_url()
-    engine = create_engine(db_url)
-
-    # Run migrations via Alembic so the schema matches production exactly
-    from alembic import command
-    from alembic.config import Config
-
-    alembic_cfg = Config()
-    alembic_cfg.set_main_option("script_location", "src/apollo/db/alembic")
-    alembic_cfg.set_main_option("sqlalchemy.url", db_url)
-    command.upgrade(alembic_cfg, "head")
-
-    yield engine
-    engine.dispose()
-
-
-@pytest.fixture()
-def db_session(db_engine):  # type: ignore[no-untyped-def]
-    """Provide a clean-slate session per test.
-
-    Truncates corpus_record before each test so that committed data from prior
-    tests (seeding + tick() commits its own transaction) does not bleed through.
-    Rollback on teardown handles any uncommitted changes in this session.
-    """
-    SessionFactory = sessionmaker(bind=db_engine)
-    with SessionFactory() as session:
-        session.execute(text("DELETE FROM corpus_record"))
-        session.commit()
-        yield session
-        session.rollback()
-
-
-@pytest.fixture()
-def patched_db_url(
-    postgres_container: PostgresContainer, monkeypatch: pytest.MonkeyPatch
-):  # type: ignore[no-untyped-def]
-    """Patch the app's settings so worker.tick() connects to the test container."""
-    db_url = postgres_container.get_connection_url()
-    monkeypatch.setenv("DATABASE_URL", db_url)
-    # Reset the lazy session factory so it picks up the patched URL
-    import apollo.db.session as sess_mod
-
-    sess_mod._engine = None
-    sess_mod._SessionFactory = None
-    yield db_url
-    # Teardown: reset again to avoid leaking state into other tests
-    sess_mod._engine = None
-    sess_mod._SessionFactory = None
 
 
 # ---------------------------------------------------------------------------
@@ -101,24 +38,17 @@ def _seed_records(
     queued_at: datetime | None = None,
 ) -> list[CorpusRecord]:
     """Insert ``count`` CorpusRecord rows with given status."""
-    records = []
-    for i in range(count):
-        record = CorpusRecord(
-            target_statement=f"Integration test target {i}",
-            parameter_name="vad",
-            is_control_target=False,
-            age_in_hours=None,
-            admin_awareness_tier="tier1",
-            admin_psychological_context=None,
+    from tests.factories import CorpusRecordFactory
+
+    records: list[CorpusRecord] = []
+    for _ in range(count):
+        record = CorpusRecordFactory(
             status=status,
             available_after=datetime.now(UTC)
             + timedelta(seconds=available_after_offset_seconds),
-            double_blind_coordinate=None,
             queued_at=queued_at,
         )
-        session.add(record)
-        records.append(record)
-    session.commit()
+        records.append(record)  # type: ignore[arg-type]
     return records
 
 
@@ -321,7 +251,6 @@ class TestWorkerTickIntegration:
         patched_db_url,  # type: ignore[no-untyped-def]
     ) -> None:
         """Updating an immutable column (target_statement) must still raise."""
-        import pytest
         from sqlalchemy.exc import SQLAlchemyError
 
         _seed_records(db_session, count=1)

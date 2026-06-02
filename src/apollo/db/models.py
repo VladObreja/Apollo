@@ -71,3 +71,11 @@ class CorpusRecord(Base):
     queued_at: MappedColumn[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+
+    # Dispatch provenance columns (set on queued → dispatched transition)
+    dispatched_at: MappedColumn[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    dispatch_agent_version: MappedColumn[str | None] = mapped_column(
+        String, nullable=True
+    )

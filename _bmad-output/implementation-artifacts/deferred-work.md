@@ -8,3 +8,12 @@
 - Missing GitHub Actions CI pipeline `.github/workflows/ci.yml` — architecture mandates sequential gating (ruff → mypy → unit → integration → alembic reversibility); not in Story 1.1 acceptance criteria, create as a dedicated DevOps story.
 - Table naming convention: `corpus_record` (singular) adopted going forward — architecture.md naming conventions section must be updated from "plural" to "singular" to align with the implemented convention.
 - `awareness_tier` and `parameter_name` enums in `domain/types.py` — domain vocabulary (`vad`, `rvd`, `ebf`, tier levels) still being finalized; add `ParameterName` and `AwarenessTier` enums and update service/migration check constraints in a future story.
+
+## Deferred from: code review of 1-2-event-driven-queue-coordinate-generation (2026-06-02)
+
+- No structured logging initialization in the CLI entrypoint (`main.py`), so worker log messages are not printed or formatted as structured JSON. [main.py](file:///c:/Apollo/src/apollo/main.py#L13)
+
+## Deferred from: code review of 1-3-task-email-dispatch (2026-06-02)
+
+- Deduplicate FakeSMTPClient across test files [tests/integration/test_worker_dispatch.py] — deferred, pre-existing
+- db_session fixture rollback teardown is a no-op [tests/integration/test_worker_dispatch.py] — deferred, pre-existing

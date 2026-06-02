@@ -5,6 +5,7 @@ The @requires decorator is currently a non-functional stub that documents
 capability boundaries in code. Full Postgres RLS / role isolation will be
 wired in a future story. The decorator contract is final — do not remove it.
 """
+
 from enum import Enum
 from functools import wraps
 from typing import Callable, TypeVar

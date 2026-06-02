@@ -1,4 +1,5 @@
 """Unit tests for domain models — pure Python, no IO or DB calls."""
+
 from apollo.domain.models import (
     AdminStateSnapshot,
     TargetConfiguration,

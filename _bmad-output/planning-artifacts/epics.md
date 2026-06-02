@@ -115,6 +115,24 @@ So that the asset receives blinded tasking instructions natively in UTC.
 **And** it dispatches the email to the Asset's designated unpersonalized email address (e.g., `apollo.asset1@proton.me`) via SMTP
 **And** it logs the dispatch event's provenance, agent version, and timestamp securely in UTC.
 
+### Story 1.4: Epic 1 Tech Debt & Infrastructure Setup
+
+As a Developer,
+I want to establish CI/CD pipelines, containerize the database, and refactor test fixtures,
+So that the codebase is robust, maintainable, and protected against regressions as we scale.
+
+**Acceptance Criteria:**
+
+**Given** the current state of the Apollo codebase at the end of Epic 1
+**When** the tech debt and infrastructure setup is complete
+**Then** a `docker-compose.yml` file is created to spin up a local PostgreSQL instance
+**And** a GitHub Actions workflow (`.github/workflows/ci.yml`) is implemented with sequential gating (ruff -> mypy -> unit -> integration -> alembic reversibility)
+**And** structured logging is initialized in the CLI entrypoint (`main.py`)
+**And** test fixtures are refactored to use `factory_boy` for model instantiation
+**And** `FakeSMTPClient` is deduplicated into a shared testing utility module
+**And** test isolation issues (like the `db_session` fixture rollback no-op) are resolved
+**And** documentation (`architecture.md`, `README.md`) is updated to reflect database URL requirements and the singular `corpus_record` naming convention.
+
 ### Epic 2: Asset Data Extraction & Sealing
 
 Close the immediate operational loop. The system receives the Asset's response, rigorously validates it into structured data, seals it immutably, and recovers from errors gracefully.

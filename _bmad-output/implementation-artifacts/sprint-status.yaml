@@ -35,17 +35,18 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: '2026-06-02T09:31:53+03:00'
-last_updated: '2026-06-02T14:45:00+03:00'
+last_updated: '2026-06-02T17:51:00+03:00'
 project: Apollo
 project_key: NOKEY
 tracking_system: file-system
 story_location: 'c:\Apollo\_bmad-output\implementation-artifacts'
 
 development_status:
-  epic-1: in-progress
+  epic-1: done
   1-1-initialize-domain-target-configuration-mcp: done
   1-2-event-driven-queue-coordinate-generation: done
-  1-3-task-email-dispatch: backlog
+  1-3-task-email-dispatch: done
+  1-4-epic-1-tech-debt-and-infrastructure: done
   epic-1-retrospective: optional
   epic-2: backlog
   2-1-inbound-email-ingestion-parsing: backlog
