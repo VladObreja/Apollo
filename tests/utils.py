@@ -1,8 +1,10 @@
 from pathlib import Path
 from apollo.domain.exceptions import ExtractionSchemaError
 
+
 def get_templates_dir() -> Path:
     return Path(__file__).parent.parent / "src" / "apollo" / "templates"
+
 
 class FakeSMTPClient:
     """Captures sent emails; optionally raises OSError on the nth call."""

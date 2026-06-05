@@ -12,3 +12,10 @@ class ExtractionSchemaError(Exception):
     are already stored on the corpus_record; Story 2.3 will route this
     to the quarantine table.
     """
+
+
+class SealingError(Exception):
+    """Raised when sealing preconditions fail (wrong status or missing raw bytes).
+
+    Caught in worker.tick() Phase 3 per-record loop.
+    """

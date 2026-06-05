@@ -24,9 +24,10 @@ from typing import Protocol
 
 from sqlalchemy.orm import Session
 
+from typing import Any
+
 from apollo.config import Settings
 from apollo.db.models import CorpusRecord
-from apollo.db.session import get_session_factory
 from apollo.domain.compartments import Compartment, requires
 from apollo.domain.types import TargetStatus
 
@@ -189,13 +190,15 @@ class EmailPollerService:
             # Commit raw bytes in a dedicated write transaction before extraction
             try:
                 with session_factory.begin() as write_session:
-                    fresh: CorpusRecord | None = write_session.get(CorpusRecord, record.id)
+                    fresh: CorpusRecord | None = write_session.get(
+                        CorpusRecord, record.id
+                    )
                     if fresh is None or fresh.status != TargetStatus.DISPATCHED.value:
                         continue
                     if fresh.raw_email_bytes is not None:
                         continue
                     EmailPollerService.store_raw_email(fresh, raw_bytes, write_session)
-                
+
                 # Update the read session record so downstream has the bytes
                 session.refresh(record)
                 matched.append((record, raw_bytes))

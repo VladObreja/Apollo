@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -14,8 +13,11 @@ from apollo.domain.models import ExtractionResultSchema
 from apollo.services.extract import ExtractionService
 from tests.utils import FakeLLM, get_templates_dir
 
+
 def _make_env() -> Environment:
-    return Environment(loader=FileSystemLoader(str(get_templates_dir())), autoescape=False)
+    return Environment(
+        loader=FileSystemLoader(str(get_templates_dir())), autoescape=False
+    )
 
 
 def _make_record(coordinate: str = "8A2F/9B4C", parameter: str = "vad") -> MagicMock:
@@ -99,7 +101,10 @@ class TestExtractionServiceRetry:
 
         assert llm.extract.call_count == 2
         retry_prompt = llm.extract.call_args_list[1][0][0]
-        assert "Error on previous attempt:" in retry_prompt or "error" in retry_prompt.lower()
+        assert (
+            "Error on previous attempt:" in retry_prompt
+            or "error" in retry_prompt.lower()
+        )
 
     def test_extract_retries_on_schema_validation_error(self) -> None:
         """param_value out-of-range triggers retry."""
@@ -144,5 +149,3 @@ class TestExtractionServiceFailure:
             ExtractionService.extract(record, "body", llm, env)
 
         assert llm._call_count == 2
-
-

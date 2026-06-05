@@ -61,6 +61,20 @@ class TargetConfiguration(BaseModel):
         default_factory=lambda: datetime.now(UTC),
         description="Creation timestamp in UTC.",
     )
+    real_money_at_stake: bool = Field(
+        default=False,
+        description=(
+            "2x2 Stakes Matrix: Whether real capital is objectively at stake for this session. "
+            "Tracked for psi-interference analysis (capital weight may affect Asset performance)."
+        ),
+    )
+    asset_financial_awareness: bool | None = Field(
+        default=None,
+        description=(
+            "2x2 Stakes Matrix: Whether the Asset subjectively believes capital is at stake. "
+            "None means not disclosed to Admin. Isolates performance anxiety from objective capital."
+        ),
+    )
 
 
 class ExtractionResultSchema(BaseModel):
@@ -94,6 +108,7 @@ class ExtractionResultSchema(BaseModel):
         if v is not None and v.tzinfo is None:
             raise ValueError("measurement_timestamp must be timezone-aware (UTC)")
         return v
+
     asset_location: str | None = Field(
         default=None,
         description=(

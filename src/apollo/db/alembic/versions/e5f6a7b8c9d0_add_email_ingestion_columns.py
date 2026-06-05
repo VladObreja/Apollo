@@ -43,6 +43,8 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove email ingestion columns and index."""
-    op.drop_index("ix_corpus_record_received_at", table_name="corpus_record", if_exists=True)
+    op.drop_index(
+        "ix_corpus_record_received_at", table_name="corpus_record", if_exists=True
+    )
     op.drop_column("corpus_record", "received_at")
     op.drop_column("corpus_record", "raw_email_bytes")

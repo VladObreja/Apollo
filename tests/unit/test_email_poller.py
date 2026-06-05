@@ -105,9 +105,6 @@ class TestFetchNewSessionEmails:
         mock_query.filter.return_value = mock_query
         mock_query.first.return_value = record
 
-        # Patch get_session_factory to avoid real DB writes in unit test
-        from unittest.mock import patch
-
         mock_write_session = MagicMock()
         mock_write_session.__enter__ = MagicMock(return_value=mock_write_session)
         mock_write_session.__exit__ = MagicMock(return_value=False)
@@ -151,7 +148,7 @@ class TestFetchNewSessionEmails:
 
         mock_session = MagicMock()
         mock_sf = MagicMock()
-        
+
         result = EmailPollerService.fetch_new_session_emails(
             mock_session, mock_sf, imap_client
         )

@@ -21,7 +21,6 @@ from typing import Any, Protocol
 
 from jinja2 import Environment
 from pydantic import ValidationError
-from sqlalchemy.orm import Session
 
 from apollo.db.models import CorpusRecord
 from apollo.domain.compartments import Compartment, requires
@@ -86,7 +85,9 @@ class OllamaClientImpl:
 
 class ExtractionService:
     @staticmethod
-    def render_extraction_prompt(record: CorpusRecord, email_body: str, env: Environment) -> str:
+    def render_extraction_prompt(
+        record: CorpusRecord, email_body: str, env: Environment
+    ) -> str:
         try:
             template = env.get_template("extraction_prompt.jinja")
             return template.render(
@@ -125,7 +126,11 @@ class ExtractionService:
         try:
             raw = llm_client.extract(prompt, schema)
             return ExtractionResultSchema.model_validate(json.loads(raw))
-        except (ValidationError, json.JSONDecodeError, ExtractionSchemaError) as first_err:
+        except (
+            ValidationError,
+            json.JSONDecodeError,
+            ExtractionSchemaError,
+        ) as first_err:
             retry_prompt = (
                 f"{prompt}\n\nError on previous attempt: {first_err}\n"
                 "Please correct your response and return valid JSON."
@@ -133,7 +138,11 @@ class ExtractionService:
             try:
                 raw_retry = llm_client.extract(retry_prompt, schema)
                 return ExtractionResultSchema.model_validate(json.loads(raw_retry))
-            except (ValidationError, json.JSONDecodeError, ExtractionSchemaError) as final_err:
+            except (
+                ValidationError,
+                json.JSONDecodeError,
+                ExtractionSchemaError,
+            ) as final_err:
                 raise ExtractionSchemaError(
                     f"LLM failed to produce valid ExtractionResultSchema after 1 retry: {final_err}"
                 ) from final_err

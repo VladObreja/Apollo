@@ -9,10 +9,11 @@ a1b2c3d4e5f6). Core identity columns remain permanently immutable.
 """
 
 from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
 
 from sqlalchemy import Boolean, DateTime, Integer, LargeBinary, String
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, MappedColumn, mapped_column
 
 
@@ -86,4 +87,22 @@ class CorpusRecord(Base):
     )
     received_at: MappedColumn[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
+    )
+
+    # Sealing columns (set on dispatched → sealed transition, Story 2.2)
+    extraction_payload: MappedColumn[dict[str, Any] | None] = mapped_column(
+        JSONB, nullable=True
+    )
+    raw_hash: MappedColumn[str | None] = mapped_column(String(64), nullable=True)
+    sealed_at: MappedColumn[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    seal_agent_version: MappedColumn[str | None] = mapped_column(String, nullable=True)
+
+    # 2x2 Stakes Matrix columns (set at configure_target time, Story 2.2)
+    real_money_at_stake: MappedColumn[bool | None] = mapped_column(
+        Boolean, nullable=True
+    )
+    asset_financial_awareness: MappedColumn[bool | None] = mapped_column(
+        Boolean, nullable=True
     )

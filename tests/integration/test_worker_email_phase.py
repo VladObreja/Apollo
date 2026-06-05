@@ -7,15 +7,16 @@ Tests the full Phase 3 cycle using:
 
 Verifies:
   - Matched emails → raw_email_bytes and received_at persisted on corpus_record
-  - Status remains 'dispatched' after Phase 3 (sealing is Story 2.2)
+  - Status advances to 'sealed' after successful extraction (Story 2.2)
   - ExtractionSchemaError is caught per-record; tick does not raise
-  - Failed extractions leave the record unchanged
+  - Failed extractions leave the record in 'dispatched' status
 """
 
 from __future__ import annotations
 
 import email.mime.multipart
 import email.mime.text
+import hashlib
 import json
 from datetime import UTC, datetime, timedelta
 
@@ -122,12 +123,12 @@ class TestWorkerEmailPhaseIntegration:
         assert record.received_at is not None, "received_at must be set"
         assert record.received_at.tzinfo is not None, "received_at must be UTC-aware"
 
-    def test_tick_status_stays_dispatched_after_extraction(
+    def test_tick_seals_record_on_successful_extraction(
         self,
         db_session,
         patched_db_url,  # type: ignore[no-untyped-def]
     ) -> None:
-        """Status must remain 'dispatched' after Phase 3 — sealing is Story 2.2."""
+        """Status must advance to 'sealed' after successful extraction (Story 2.2)."""
         coord = "CCCC/DDDD"
         _seed_dispatched(db_session, coordinate=coord)
 
@@ -147,9 +148,14 @@ class TestWorkerEmailPhaseIntegration:
             .first()
         )
         assert record is not None
-        assert record.status == TargetStatus.DISPATCHED.value, (
-            f"Expected 'dispatched', got '{record.status}' — sealing must be Story 2.2"
+        assert record.status == TargetStatus.SEALED.value, (
+            f"Expected 'sealed', got '{record.status}'"
         )
+        assert record.raw_hash is not None
+        assert record.raw_hash == hashlib.sha256(raw).hexdigest()
+        assert record.extraction_payload is not None
+        assert record.sealed_at is not None
+        assert record.sealed_at.tzinfo is not None
 
     def test_tick_extraction_failure_does_not_raise(
         self,

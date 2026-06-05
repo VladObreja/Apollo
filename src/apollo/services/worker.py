@@ -19,13 +19,15 @@ from jinja2 import Environment, FileSystemLoader
 
 from apollo.db.models import CorpusRecord
 from apollo.db.session import get_session_factory
-from apollo.domain.exceptions import ExtractionSchemaError
+from apollo.domain.exceptions import ExtractionSchemaError, SealingError
+from apollo.domain.types import TargetStatus
 from apollo.services.dispatch import (
     AGENT_VERSION,
     DispatchService,
     SMTPClient,
     SMTPClientImpl,
 )
+from apollo.services.seal import SealingService
 from apollo.services.email_poller import (
     EmailPollerService,
     IMAPClient,
@@ -154,8 +156,6 @@ def tick(
                         CorpusRecord, record.id
                     )
                     if fresh is not None:
-                        from apollo.domain.types import TargetStatus
-
                         if fresh.status == TargetStatus.QUEUED.value:
                             DispatchService.mark_dispatched(
                                 fresh, write_session, AGENT_VERSION
@@ -200,16 +200,40 @@ def tick(
         body = EmailPollerService.parse_email_body(raw_bytes)
         try:
             _result = ExtractionService.extract(record, body, llm_client, env)
-            extraction_success += 1
-            logger.info(
-                "apollo.worker.tick: extraction succeeded",
-                extra={"record_id": str(record.id)},
-            )
-            # Story 2.2: SealingService.seal(record, raw_bytes, _result) goes here
-        except ExtractionSchemaError as exc:
+            with SessionFactory.begin() as write_session:
+                fresh_seal: CorpusRecord | None = write_session.get(
+                    CorpusRecord, record.id
+                )
+                if fresh_seal is None:
+                    logger.warning(
+                        "apollo.worker.tick: record vanished before sealing",
+                        extra={"record_id": str(record.id)},
+                    )
+                elif fresh_seal.status != TargetStatus.DISPATCHED.value:
+                    logger.warning(
+                        "apollo.worker.tick: record no longer dispatched before sealing",
+                        extra={
+                            "record_id": str(record.id),
+                            "status": fresh_seal.status,
+                        },
+                    )
+                else:
+                    raw_hash = SealingService.seal(fresh_seal, _result, write_session)
+                    extraction_success += 1
+                    logger.info(
+                        "apollo.worker.tick: record sealed",
+                        extra={
+                            "record_id": str(record.id),
+                            "raw_hash": raw_hash,
+                            "seal_agent_version": AGENT_VERSION,
+                            "real_money_at_stake": fresh_seal.real_money_at_stake,
+                            "asset_financial_awareness": fresh_seal.asset_financial_awareness,
+                        },
+                    )
+        except (ExtractionSchemaError, SealingError) as exc:
             extraction_failed += 1
             logger.error(
-                "apollo.worker.tick: extraction failed after retry",
+                "apollo.worker.tick: extraction/sealing failed",
                 extra={"record_id": str(record.id), "error": str(exc)},
             )
             # Story 2.3: QuarantineService.quarantine(...) goes here

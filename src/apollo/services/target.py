@@ -42,6 +42,8 @@ class TargetService:
                 admin_psychological_context=config.admin_state.psychological_context,
                 created_at=config.created_at,
                 available_after=available_after,
+                real_money_at_stake=config.real_money_at_stake,
+                asset_financial_awareness=config.asset_financial_awareness,
                 # status defaults to 'pending' via server_default and ORM default
             )
             session.add(record)

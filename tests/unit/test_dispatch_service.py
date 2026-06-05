@@ -243,13 +243,13 @@ class TestSettingsDefaults:
             "IMAP_USE_SSL",
         ]
         saved = {k: os.environ.pop(k, None) for k in imap_vars}
-        
+
         # We MUST provide both required fields
         saved_user = os.environ.get("IMAP_USERNAME")
         os.environ["IMAP_USERNAME"] = "test_user@proton.me"
         saved_digest = os.environ.get("OLLAMA_MODEL_DIGEST")
         os.environ["OLLAMA_MODEL_DIGEST"] = "sha256:dummy"
-        
+
         try:
             from apollo.config import Settings
 
@@ -264,7 +264,7 @@ class TestSettingsDefaults:
                     os.environ[k] = v
                 else:
                     os.environ.pop(k, None)
-            
+
             if saved_user is not None:
                 os.environ["IMAP_USERNAME"] = saved_user
             else:
@@ -283,13 +283,13 @@ class TestSettingsDefaults:
             "OLLAMA_TIMEOUT_SECONDS",
         ]
         saved = {k: os.environ.pop(k, None) for k in ollama_vars}
-        
+
         # We MUST provide both required fields
         saved_user = os.environ.get("IMAP_USERNAME")
         os.environ["IMAP_USERNAME"] = "test_user@proton.me"
         saved_digest = os.environ.get("OLLAMA_MODEL_DIGEST")
         os.environ["OLLAMA_MODEL_DIGEST"] = "sha256:dummy"
-        
+
         try:
             from apollo.config import Settings
 

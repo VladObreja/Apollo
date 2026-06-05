@@ -1,12 +1,13 @@
 """Unit tests for Jinja2 templates — no DB, no IO, no LLM calls."""
 
-from pathlib import Path
-
 from jinja2 import Environment, FileSystemLoader
 from tests.utils import get_templates_dir
 
+
 def _make_env() -> Environment:
-    return Environment(loader=FileSystemLoader(str(get_templates_dir())), autoescape=False)
+    return Environment(
+        loader=FileSystemLoader(str(get_templates_dir())), autoescape=False
+    )
 
 
 class TestExtractionTemplate:
