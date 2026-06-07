@@ -20,6 +20,7 @@ class Compartment(Enum):
     TARGET_READ = "target_read"
     EXTRACTION_WRITE = "extraction_write"
     CALIBRATION_READ = "calibration_read"
+    CALIBRATION_WRITE = "calibration_write"
 
 
 def requires(compartment: Compartment) -> Callable[[F], F]:

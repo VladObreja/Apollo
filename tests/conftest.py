@@ -22,7 +22,12 @@ from sqlalchemy.orm import sessionmaker
 from testcontainers.postgres import PostgresContainer  # type: ignore[import-untyped]
 
 from apollo.db import session as sess_mod
-from tests.factories import CorpusRecordFactory
+from tests.factories import (
+    CorpusRecordFactory,
+    EnvFingerprintFactory,
+    QuarantineRecordFactory,
+    ValidationRecordFactory,
+)
 
 
 @pytest.fixture(scope="session")
@@ -62,6 +67,9 @@ def db_session(db_engine):
 
         # Bind the session to factory_boy so tests can use it automatically
         CorpusRecordFactory._meta.sqlalchemy_session = session
+        QuarantineRecordFactory._meta.sqlalchemy_session = session
+        EnvFingerprintFactory._meta.sqlalchemy_session = session
+        ValidationRecordFactory._meta.sqlalchemy_session = session
 
         yield session
         session.rollback()

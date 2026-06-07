@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -27,12 +29,18 @@ class Settings(BaseSettings):
     ollama_model_digest: str = ""
     ollama_timeout_seconds: int = 60
 
+    # Asset location — used for Local Sidereal Time computation
+    asset_latitude: float = 44.43  # Bucharest, Romania (degrees N)
+    asset_longitude: float = 26.10  # Bucharest, Romania (degrees E)
+
+    closure_ceremony_interval_days: int = 7
+
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", frozen=True
     )
 
     @field_validator("imap_username", "ollama_model_digest")
-    def check_not_empty(cls, v: str, info) -> str:
+    def check_not_empty(cls, v: str, info: Any) -> str:
         if not v.strip():
             raise ValueError(f"{info.field_name} must not be empty")
         return v

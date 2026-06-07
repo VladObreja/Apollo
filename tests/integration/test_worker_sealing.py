@@ -19,7 +19,7 @@ from datetime import UTC, datetime, timedelta
 
 from apollo.db.models import CorpusRecord
 from apollo.domain.types import TargetStatus
-from tests.utils import FakeIMAPClient, FakeLLM, FakeSMTPClient
+from tests.utils import FakeIMAPClient, FakeLLM, FakeMarketDataClient, FakeSMTPClient
 
 
 def _make_reply_email(coordinate: str, body: str) -> bytes:
@@ -70,7 +70,12 @@ class TestWorkerSealingIntegration:
 
         from apollo.services.worker import tick
 
-        tick(smtp_client=fake_smtp, imap_client=imap_client, llm_client=llm_client)
+        tick(
+            smtp_client=fake_smtp,
+            imap_client=imap_client,
+            llm_client=llm_client,
+            market_client=FakeMarketDataClient(),
+        )
 
         db_session.expire_all()
         record = (
@@ -102,7 +107,12 @@ class TestWorkerSealingIntegration:
 
         from apollo.services.worker import tick
 
-        tick(smtp_client=fake_smtp, imap_client=imap_client, llm_client=llm_client)
+        tick(
+            smtp_client=fake_smtp,
+            imap_client=imap_client,
+            llm_client=llm_client,
+            market_client=FakeMarketDataClient(),
+        )
 
         db_session.expire_all()
         record = (

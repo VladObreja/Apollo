@@ -16,14 +16,7 @@ from apollo.domain.compartments import Compartment, requires
 from apollo.domain.exceptions import SealingError
 from apollo.domain.models import ExtractionResultSchema
 from apollo.domain.types import TargetStatus
-
-try:
-    from importlib.metadata import PackageNotFoundError
-    from importlib.metadata import version as _pkg_version
-
-    AGENT_VERSION: str = _pkg_version("apollo")
-except PackageNotFoundError:
-    AGENT_VERSION = "0.0.0"
+from apollo.services.dispatch import AGENT_VERSION
 
 
 class SealingService:

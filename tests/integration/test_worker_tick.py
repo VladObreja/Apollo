@@ -16,7 +16,7 @@ import pytest
 
 from apollo.db.models import CorpusRecord
 from apollo.domain.types import TargetStatus
-from tests.utils import FakeIMAPClient, FakeSMTPClient
+from tests.utils import FakeIMAPClient, FakeMarketDataClient, FakeSMTPClient
 
 _COORD_RE = re.compile(r"^[0-9A-F]{4}/[0-9A-F]{4}$")
 
@@ -69,7 +69,11 @@ class TestWorkerTickIntegration:
 
         from apollo.services.worker import tick
 
-        tick(smtp_client=FakeSMTPClient(), imap_client=FakeIMAPClient([]))
+        tick(
+            smtp_client=FakeSMTPClient(),
+            imap_client=FakeIMAPClient([]),
+            market_client=FakeMarketDataClient(),
+        )
 
         db_session.expire_all()
         # Records may have been dispatched by Phase 2; check coordinates were assigned
@@ -107,7 +111,11 @@ class TestWorkerTickIntegration:
 
         from apollo.services.worker import tick
 
-        tick(smtp_client=FakeSMTPClient(), imap_client=FakeIMAPClient([]))
+        tick(
+            smtp_client=FakeSMTPClient(),
+            imap_client=FakeIMAPClient([]),
+            market_client=FakeMarketDataClient(),
+        )
 
         db_session.expire_all()
         # Records seeded as pending may be queued or dispatched (Phase 2 runs with FakeSMTP)
@@ -136,7 +144,11 @@ class TestWorkerTickIntegration:
 
         from apollo.services.worker import tick
 
-        tick(smtp_client=FakeSMTPClient(), imap_client=FakeIMAPClient([]))
+        tick(
+            smtp_client=FakeSMTPClient(),
+            imap_client=FakeIMAPClient([]),
+            market_client=FakeMarketDataClient(),
+        )
 
         db_session.expire_all()
         # After first tick: all 3 are processed (queued or dispatched)
@@ -151,7 +163,11 @@ class TestWorkerTickIntegration:
         )
         assert after_first == 3
 
-        tick(smtp_client=FakeSMTPClient(), imap_client=FakeIMAPClient([]))
+        tick(
+            smtp_client=FakeSMTPClient(),
+            imap_client=FakeIMAPClient([]),
+            market_client=FakeMarketDataClient(),
+        )
 
         db_session.expire_all()
         # After second tick: still 3 (no new pending records to claim)
@@ -181,7 +197,11 @@ class TestWorkerTickIntegration:
 
         from apollo.services.worker import tick
 
-        tick(smtp_client=FakeSMTPClient(), imap_client=FakeIMAPClient([]))
+        tick(
+            smtp_client=FakeSMTPClient(),
+            imap_client=FakeIMAPClient([]),
+            market_client=FakeMarketDataClient(),
+        )
 
         db_session.expire_all()
         # Records may be queued or dispatched (Phase 2 runs with FakeSMTP)
@@ -221,7 +241,11 @@ class TestWorkerTickIntegration:
 
         from apollo.services.worker import tick
 
-        tick(smtp_client=FakeSMTPClient(), imap_client=FakeIMAPClient([]))
+        tick(
+            smtp_client=FakeSMTPClient(),
+            imap_client=FakeIMAPClient([]),
+            market_client=FakeMarketDataClient(),
+        )
 
         db_session.expire_all()
         queued = (
@@ -241,7 +265,11 @@ class TestWorkerTickIntegration:
 
         from apollo.services.worker import tick
 
-        tick(smtp_client=FakeSMTPClient(), imap_client=FakeIMAPClient([]))
+        tick(
+            smtp_client=FakeSMTPClient(),
+            imap_client=FakeIMAPClient([]),
+            market_client=FakeMarketDataClient(),
+        )
 
         db_session.expire_all()
         # Check coordinate uniqueness across all processed records (queued or dispatched)
@@ -272,7 +300,9 @@ class TestWorkerTickIntegration:
         from apollo.services.worker import tick
 
         tick(
-            smtp_client=FakeSMTPClient(), imap_client=FakeIMAPClient([])
+            smtp_client=FakeSMTPClient(),
+            imap_client=FakeIMAPClient([]),
+            market_client=FakeMarketDataClient(),
         )  # Should not raise
 
         db_session.expire_all()

@@ -44,6 +44,10 @@ class TargetService:
                 available_after=available_after,
                 real_money_at_stake=config.real_money_at_stake,
                 asset_financial_awareness=config.asset_financial_awareness,
+                ticker=config.ticker,
+                expiry_at=config.expiry_at,
+                threshold_pct=config.threshold_pct,
+                threshold_direction=config.threshold_direction,
                 # status defaults to 'pending' via server_default and ORM default
             )
             session.add(record)

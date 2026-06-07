@@ -22,7 +22,7 @@ from apollo.domain.types import TargetStatus
 # ---------------------------------------------------------------------------
 
 
-from tests.utils import FakeIMAPClient, FakeSMTPClient
+from tests.utils import FakeIMAPClient, FakeMarketDataClient, FakeSMTPClient
 
 
 # ---------------------------------------------------------------------------
@@ -68,7 +68,11 @@ class TestWorkerDispatchIntegration:
 
         from apollo.services.worker import tick
 
-        tick(smtp_client=fake_smtp, imap_client=FakeIMAPClient([]))
+        tick(
+            smtp_client=fake_smtp,
+            imap_client=FakeIMAPClient([]),
+            market_client=FakeMarketDataClient(),
+        )
 
         db_session.expire_all()
         dispatched = (
@@ -95,7 +99,11 @@ class TestWorkerDispatchIntegration:
 
         from apollo.services.worker import tick
 
-        tick(smtp_client=fake_smtp, imap_client=FakeIMAPClient([]))
+        tick(
+            smtp_client=fake_smtp,
+            imap_client=FakeIMAPClient([]),
+            market_client=FakeMarketDataClient(),
+        )
 
         db_session.expire_all()
         records = (
@@ -128,7 +136,11 @@ class TestWorkerDispatchIntegration:
 
         from apollo.services.worker import tick
 
-        tick(smtp_client=fake_smtp, imap_client=FakeIMAPClient([]))
+        tick(
+            smtp_client=fake_smtp,
+            imap_client=FakeIMAPClient([]),
+            market_client=FakeMarketDataClient(),
+        )
 
         for coord in expected_coords:
             assert any(
@@ -147,7 +159,11 @@ class TestWorkerDispatchIntegration:
 
         from apollo.services.worker import tick
 
-        tick(smtp_client=fake_smtp, imap_client=FakeIMAPClient([]))
+        tick(
+            smtp_client=fake_smtp,
+            imap_client=FakeIMAPClient([]),
+            market_client=FakeMarketDataClient(),
+        )
 
         db_session.expire_all()
         dispatched_count = (
@@ -194,7 +210,11 @@ class TestWorkerDispatchIntegration:
 
         from apollo.services.worker import tick
 
-        tick(smtp_client=fake_smtp, imap_client=FakeIMAPClient([]))
+        tick(
+            smtp_client=fake_smtp,
+            imap_client=FakeIMAPClient([]),
+            market_client=FakeMarketDataClient(),
+        )
 
         # Only 1 new email for the newly queued record
         assert len(fake_smtp.sent) == 1, (

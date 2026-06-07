@@ -12,7 +12,15 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, Integer, LargeBinary, String
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    LargeBinary,
+    String,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, MappedColumn, mapped_column
 
@@ -101,8 +109,140 @@ class CorpusRecord(Base):
 
     # 2x2 Stakes Matrix columns (set at configure_target time, Story 2.2)
     real_money_at_stake: MappedColumn[bool | None] = mapped_column(
-        Boolean, nullable=True
+        Boolean, nullable=True, default=False
     )
     asset_financial_awareness: MappedColumn[bool | None] = mapped_column(
         Boolean, nullable=True
+    )
+
+    # Market validation columns (set at configure_target time, Story 3.1)
+    ticker: MappedColumn[str | None] = mapped_column(String, nullable=True)
+    expiry_at: MappedColumn[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    threshold_pct: MappedColumn[float | None] = mapped_column(Float, nullable=True)
+    threshold_direction: MappedColumn[str | None] = mapped_column(String, nullable=True)
+
+
+class QuarantineRecord(Base):
+    """Holds raw email bytes from failed extractions (exception path, Story 2.3).
+
+    Physically separates corrupted/unvalidatable extractions from the primary
+    corpus_record ledger. Cascade-deletes when the parent corpus_record is removed.
+
+    Lifecycle:
+        created on ExtractionSchemaError in worker Phase 3
+        clarification_sent_at set after successful SMTP dispatch
+    """
+
+    __tablename__ = "quarantine_record"
+
+    id: MappedColumn[UUID] = mapped_column(  # type: ignore[type-arg]
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    corpus_record_id: MappedColumn[UUID] = mapped_column(  # type: ignore[type-arg]
+        UUID(as_uuid=True),
+        ForeignKey("corpus_record.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    raw_email_bytes: MappedColumn[bytes] = mapped_column(LargeBinary, nullable=False)
+    quarantine_reason: MappedColumn[str] = mapped_column(String, nullable=False)
+    error_detail: MappedColumn[str] = mapped_column(String, nullable=False)
+    quarantined_at: MappedColumn[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    clarification_sent_at: MappedColumn[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    clarification_agent_version: MappedColumn[str | None] = mapped_column(
+        String, nullable=True
+    )
+
+
+class EnvFingerprint(Base):
+    """Environmental context snapshot for a sealed corpus_record (Story 2.4).
+
+    One-to-one with CorpusRecord. Created post-seal by FingerprintService.attach().
+    retrieval_status reflects completeness of external NOAA API fetches:
+      'ok' = both metrics fetched, 'partial' = one failed, 'pending' = both failed.
+    """
+
+    __tablename__ = "env_fingerprint"
+
+    id: MappedColumn[UUID] = mapped_column(  # type: ignore[type-arg]
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    corpus_record_id: MappedColumn[UUID] = mapped_column(  # type: ignore[type-arg]
+        UUID(as_uuid=True),
+        ForeignKey("corpus_record.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    fingerprinted_at: MappedColumn[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    measurement_timestamp: MappedColumn[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    local_sidereal_time: MappedColumn[float | None] = mapped_column(
+        Float, nullable=True
+    )
+    kp_index: MappedColumn[float | None] = mapped_column(Float, nullable=True)
+    solar_wind_speed: MappedColumn[float | None] = mapped_column(Float, nullable=True)
+    retrieval_status: MappedColumn[str] = mapped_column(
+        String, nullable=False, default="pending"
+    )
+    retrieval_notes: MappedColumn[str | None] = mapped_column(String, nullable=True)
+
+
+class ValidationRecord(Base):
+    """Ground-truth market outcome for a sealed corpus_record (Story 3.1).
+
+    One-to-one with CorpusRecord via UNIQUE FK. Created by ValidationService.validate_pending().
+    Never modifies corpus_record — purely a derived, append-only record.
+    validation_status: 'hit' | 'miss' | 'offset' (fetched >2h past expiry)
+    """
+
+    __tablename__ = "validation_record"
+
+    id: MappedColumn[UUID] = mapped_column(  # type: ignore[type-arg]
+        UUID(as_uuid=True), primary_key=True, default=uuid4
+    )
+    corpus_record_id: MappedColumn[UUID] = mapped_column(  # type: ignore[type-arg]
+        UUID(as_uuid=True),
+        ForeignKey("corpus_record.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    validated_at: MappedColumn[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    validation_status: MappedColumn[str] = mapped_column(String, nullable=False)
+    param_value: MappedColumn[float] = mapped_column(Float, nullable=False)
+    actual_open: MappedColumn[float | None] = mapped_column(Float, nullable=True)
+    actual_close: MappedColumn[float | None] = mapped_column(Float, nullable=True)
+    actual_change_pct: MappedColumn[float | None] = mapped_column(Float, nullable=True)
+    threshold_pct_snapshot: MappedColumn[float | None] = mapped_column(
+        Float, nullable=True
+    )
+    threshold_direction_snapshot: MappedColumn[str | None] = mapped_column(
+        String, nullable=True
+    )
+    predicted_positive: MappedColumn[bool | None] = mapped_column(
+        Boolean, nullable=True
+    )
+    actual_positive: MappedColumn[bool | None] = mapped_column(Boolean, nullable=True)
+    fetch_delay_seconds: MappedColumn[float | None] = mapped_column(
+        Float, nullable=True
+    )
+    validation_agent_version: MappedColumn[str | None] = mapped_column(
+        String, nullable=True
+    )
+    fetch_error: MappedColumn[str | None] = mapped_column(String, nullable=True)
+    closed_at: MappedColumn[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )

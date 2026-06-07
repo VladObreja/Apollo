@@ -4,7 +4,7 @@ baseline_commit: 362ebf5
 
 # Story 2.2: Epistemological Sealing & Ledger Commit (Happy Path)
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -138,6 +138,18 @@ So that the raw data is permanently immutable and ready for calibration.
   - [x] Assert: `record.sealed_at` is not None and `record.sealed_at.tzinfo is not None`
   - [x] Assert: `record.seal_agent_version` is not None
   - [x] Failure path: `FakeLLM` always fails extraction → status stays `dispatched`, `raw_hash` is None
+
+### Review Findings
+
+- [x] [Review][Patch] extraction_failed not incremented in None/wrong-status sealing branches [HIGH] [src/apollo/services/worker.py]
+- [x] [Review][Patch] IntegrityError not caught for concurrent double-seal race condition [HIGH] [src/apollo/services/worker.py]
+- [x] [Review][Patch] AGENT_VERSION re-declared in seal.py instead of imported from dispatch.py [LOW] [src/apollo/services/seal.py]
+- [x] [Review][Patch] real_money_at_stake ORM column missing Python-side default=False [LOW] [src/apollo/db/models.py]
+- [x] [Review][Patch] Unit test missing seal_agent_version assertion [LOW] [tests/unit/test_seal_service.py]
+- [x] [Review][Defer] b"" empty bytes causes permanent retry loop for stuck DISPATCHED records [src/apollo/services/seal.py] — deferred, architectural (needs dead-letter queue or per-record retry limit)
+- [x] [Review][Defer] model_dump PydanticSerializationError not wrapped in SealingError [src/apollo/services/seal.py:63] — deferred, caught by outer except Exception, functional
+- [x] [Review][Defer] datetime.now(UTC) not injectable for frozen-time testing [src/apollo/services/seal.py] — deferred, test hardness improvement, not a bug
+- [x] [Review][Defer] Test helper deduplication (_make_reply_email, _seed_dispatched not in tests/utils.py) [tests/] — deferred, DRY cleanup, not a bug
 
 ## Dev Notes
 

@@ -75,6 +75,26 @@ class TargetConfiguration(BaseModel):
             "None means not disclosed to Admin. Isolates performance anxiety from objective capital."
         ),
     )
+    ticker: str | None = Field(
+        default=None,
+        description="Market symbol for ground-truth validation (e.g., 'GC=F' for Gold, 'EURUSD=X' for EUR/USD).",
+    )
+    expiry_at: datetime | None = Field(
+        default=None,
+        description="UTC datetime when the market outcome should be checked (e.g., market close time).",
+    )
+    threshold_pct: float | None = Field(
+        default=None,
+        ge=0.0,
+        description=(
+            "Required percentage change for a positive outcome (e.g., 9.0 means 9%). "
+            "Applied in the direction specified by threshold_direction."
+        ),
+    )
+    threshold_direction: Literal["UP", "DOWN"] | None = Field(
+        default=None,
+        description="Direction for a positive outcome: 'UP' (price rises ≥ threshold_pct) or 'DOWN' (price falls ≥ threshold_pct).",
+    )
 
 
 class ExtractionResultSchema(BaseModel):
@@ -149,3 +169,51 @@ class ExtractionResultSchema(BaseModel):
             "beyond the structured fields."
         ),
     )
+
+
+class ConvictionBucket(BaseModel):
+    """One equal-width bucket of the param_value conviction range (0–100)."""
+
+    label: str = Field(description="Bucket range label, e.g. '0–10'.")
+    n: int = Field(description="Number of scored sessions in this bucket.")
+    avg_conviction: float | None = Field(
+        description="Mean param_value for sessions in this bucket."
+    )
+    hit_rate: float | None = Field(
+        description="Fraction of sessions in bucket that were hits (0.0–1.0). None if n == 0."
+    )
+    ci_lower: float | None = Field(
+        description="Wilson score 95% CI lower bound for hit rate. None if n == 0."
+    )
+    ci_upper: float | None = Field(
+        description="Wilson score 95% CI upper bound for hit rate. None if n == 0."
+    )
+
+
+class CalibrationStats(BaseModel):
+    """Aggregated calibration statistics over a closed session corpus."""
+
+    n_total: int = Field(description="Total closed validation records queried.")
+    n_offset: int = Field(
+        description="Sessions excluded due to temporal drift (validation_status='offset')."
+    )
+    n_scored: int = Field(description="Sessions included in metric computations.")
+    brier_score: float | None = Field(
+        description="Brier score over scored sessions. None if n_scored == 0."
+    )
+    ece: float | None = Field(
+        description="Expected Calibration Error (10-bin) over scored sessions. None if n_scored == 0."
+    )
+    hit_rate: float | None = Field(
+        description="Overall empirical hit rate over scored sessions. None if n_scored == 0."
+    )
+    hit_rate_ci_lower: float | None = Field(
+        description="Wilson 95% CI lower bound for overall hit rate."
+    )
+    hit_rate_ci_upper: float | None = Field(
+        description="Wilson 95% CI upper bound for overall hit rate."
+    )
+    conviction_buckets: list[ConvictionBucket] = Field(
+        description="Hit rate breakdown across 10 equal-width param_value buckets (0–10, …, 90–100)."
+    )
+    computed_at: datetime = Field(description="UTC timestamp when stats were computed.")

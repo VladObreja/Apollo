@@ -1,5 +1,7 @@
+from datetime import datetime
 from pathlib import Path
-from apollo.domain.exceptions import ExtractionSchemaError
+from apollo.domain.exceptions import ExtractionSchemaError, MarketDataError
+from apollo.services.validate import OHLCVResult
 
 
 def get_templates_dir() -> Path:
@@ -50,3 +52,52 @@ class FakeIMAPClient:
 
     def fetch_unseen_emails(self) -> list[bytes]:
         return list(self._raw_emails)
+
+
+class FakeEnvDataClient:
+    """Returns canned environmental metrics for fingerprint tests."""
+
+    def __init__(
+        self,
+        kp: float | None = 3.0,
+        solar_wind: float | None = 450.0,
+        raise_on_kp: bool = False,
+        raise_on_wind: bool = False,
+    ) -> None:
+        self._kp = kp
+        self._solar_wind = solar_wind
+        self._raise_on_kp = raise_on_kp
+        self._raise_on_wind = raise_on_wind
+
+    def fetch_kp_index(self, timestamp: datetime) -> float | None:
+        if self._raise_on_kp:
+            raise OSError("Simulated Kp fetch failure")
+        return self._kp
+
+    def fetch_solar_wind_speed(self, timestamp: datetime) -> float | None:
+        if self._raise_on_wind:
+            raise OSError("Simulated solar wind fetch failure")
+        return self._solar_wind
+
+
+class FakeMarketDataClient:
+    """Returns canned OHLCVResult per ticker for validation tests.
+
+    If ticker not in responses, raises MarketDataError.
+    Set raise_always=True to always raise (simulates outage).
+    """
+
+    def __init__(
+        self,
+        responses: dict[str, OHLCVResult] | None = None,
+        raise_always: bool = False,
+    ) -> None:
+        self._responses: dict[str, OHLCVResult] = responses or {}
+        self._raise_always = raise_always
+
+    def fetch_ohlcv(self, ticker: str, expiry_at: datetime) -> OHLCVResult:
+        if self._raise_always:
+            raise MarketDataError("Simulated market data outage")
+        if ticker not in self._responses:
+            raise MarketDataError(f"No canned response for ticker {ticker!r}")
+        return self._responses[ticker]

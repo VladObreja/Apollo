@@ -1,0 +1,22 @@
+Subject: Apollo Closure Ceremony — {{ sessions | length }} Session(s) Closed
+
+Closure Ceremony
+Generated: {{ generated_at }}
+
+The following sessions have been validated against ground truth and are now epistemologically closed.
+
+{% for s in sessions %}
+——————————————————————————————————
+Session ID:    {{ s.coordinate }}
+Parameter:     {{ s.parameter_name }}
+Target:        {{ s.target_statement }}
+Your reading:  {{ s.param_value | round(1) }} ({% if s.predicted_positive is none %}Unknown{% elif s.predicted_positive %}Positive{% else %}Negative{% endif %})
+Outcome:       {{ s.validation_status | upper }}{% if s.validation_status == 'offset' %} ⚠ late fetch — calibration confidence reduced{% endif %}{% if s.actual_change_pct is not none %} (actual move: {{ "%.2f" | format(s.actual_change_pct) }}%){% endif %}
+
+{% endfor %}
+——————————————————————————————————
+
+Total: {{ sessions | length }} session(s) epistemologically closed.
+
+Apollo Research System
+This is an automated research communication.

@@ -22,7 +22,13 @@ from datetime import UTC, datetime, timedelta
 
 from apollo.db.models import CorpusRecord
 from apollo.domain.types import TargetStatus
-from tests.utils import FakeIMAPClient, FakeLLM, FakeSMTPClient
+from tests.utils import (
+    FakeEnvDataClient,
+    FakeIMAPClient,
+    FakeLLM,
+    FakeMarketDataClient,
+    FakeSMTPClient,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -83,7 +89,13 @@ class TestWorkerEmailPhaseIntegration:
 
         from apollo.services.worker import tick
 
-        tick(smtp_client=fake_smtp, imap_client=imap_client, llm_client=llm_client)
+        tick(
+            smtp_client=fake_smtp,
+            imap_client=imap_client,
+            llm_client=llm_client,
+            env_client=FakeEnvDataClient(),
+            market_client=FakeMarketDataClient(),
+        )
 
         db_session.expire_all()
         record = (
@@ -111,7 +123,13 @@ class TestWorkerEmailPhaseIntegration:
 
         from apollo.services.worker import tick
 
-        tick(smtp_client=fake_smtp, imap_client=imap_client, llm_client=llm_client)
+        tick(
+            smtp_client=fake_smtp,
+            imap_client=imap_client,
+            llm_client=llm_client,
+            env_client=FakeEnvDataClient(),
+            market_client=FakeMarketDataClient(),
+        )
 
         db_session.expire_all()
         record = (
@@ -139,7 +157,13 @@ class TestWorkerEmailPhaseIntegration:
 
         from apollo.services.worker import tick
 
-        tick(smtp_client=fake_smtp, imap_client=imap_client, llm_client=llm_client)
+        tick(
+            smtp_client=fake_smtp,
+            imap_client=imap_client,
+            llm_client=llm_client,
+            env_client=FakeEnvDataClient(),
+            market_client=FakeMarketDataClient(),
+        )
 
         db_session.expire_all()
         record = (
@@ -175,7 +199,13 @@ class TestWorkerEmailPhaseIntegration:
         from apollo.services.worker import tick
 
         # Must NOT raise — ExtractionSchemaError is caught per-record
-        tick(smtp_client=fake_smtp, imap_client=imap_client, llm_client=llm_client)
+        tick(
+            smtp_client=fake_smtp,
+            imap_client=imap_client,
+            llm_client=llm_client,
+            env_client=FakeEnvDataClient(),
+            market_client=FakeMarketDataClient(),
+        )
 
         # Record must still exist with raw bytes stored
         db_session.expire_all()
@@ -185,9 +215,9 @@ class TestWorkerEmailPhaseIntegration:
             .first()
         )
         assert record is not None
-        # raw bytes were stored before the failed LLM call
-        assert record.raw_email_bytes is not None
-        # Status stays dispatched (Story 2.3 will quarantine)
+        # Story 2.3: quarantine clears raw_email_bytes to allow clarification reply ingestion
+        assert record.raw_email_bytes is None
+        # Status stays dispatched (waiting for Jane's clarification reply)
         assert record.status == TargetStatus.DISPATCHED.value
 
     def test_tick_ignores_email_with_unrecognised_coordinate(
@@ -207,7 +237,13 @@ class TestWorkerEmailPhaseIntegration:
 
         from apollo.services.worker import tick
 
-        tick(smtp_client=fake_smtp, imap_client=imap_client, llm_client=llm_client)
+        tick(
+            smtp_client=fake_smtp,
+            imap_client=imap_client,
+            llm_client=llm_client,
+            env_client=FakeEnvDataClient(),
+            market_client=FakeMarketDataClient(),
+        )
 
         # Our record must be untouched
         db_session.expire_all()

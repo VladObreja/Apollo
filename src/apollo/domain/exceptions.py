@@ -19,3 +19,17 @@ class SealingError(Exception):
 
     Caught in worker.tick() Phase 3 per-record loop.
     """
+
+
+class QuarantineError(Exception):
+    """Raised when quarantine pre-conditions fail (record not found, raw_email_bytes missing,
+    or template/rendering failure). Caught in worker.tick() Phase 3 per-record loop.
+    Non-fatal — logged and tick continues.
+    """
+
+
+class MarketDataError(Exception):
+    """Raised when market data cannot be fetched or parsed for a validation record.
+
+    Caught in ValidationService.validate_pending(). Never propagates to tick() caller.
+    """

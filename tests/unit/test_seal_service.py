@@ -39,6 +39,7 @@ class TestSealService:
         assert record.extraction_payload == extraction.model_dump(mode="json")
         assert record.sealed_at is not None
         assert record.sealed_at.tzinfo is not None
+        assert record.seal_agent_version == "1.0.0"
         session.add.assert_called_once_with(record)
 
     def test_seal_raw_hash_is_sha256_of_bytes(self) -> None:
