@@ -8,7 +8,10 @@
       "Write(*)",
       "WebFetch(*)",
       "WebSearch",
-      "Skill(*)"
+      "Skill(*)",
+      "mcp__apollo__get_calibration_stats",
+      "mcp__apollo__configure_target",
+      "mcp__apollo__trigger_closure_ceremony"
     ],
     "deny": [
       "Bash(git push --force*)",
@@ -16,6 +19,6 @@
       "Bash(rm -rf /mnt/c/Apollo)",
       "Bash(docker system prune*)"
     ],
-    "defaultMode": "dontAsk"
+    "defaultMode": "default"
   }
 }

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "apollo": {
+      "command": "/mnt/c/Apollo/.venv/Scripts/apollo.exe",
+      "args": ["mcp"],
+      "cwd": "/mnt/c/Apollo"
+    }
+  }
+}
