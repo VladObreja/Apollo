@@ -244,4 +244,88 @@ So that I can discover the Asset's actual optimal conviction threshold and estab
 **And** the logic executes entirely isolated from the extraction compartment (proving double-blind integrity)
 **And** it returns the statistical readout back to the Claude Code agent.
 
+### Epic 4: Hardening & Tech Debt
+
+Added 2026-06-10 via Correct Course (sprint-change-proposal-2026-06-10.md). With FR1–FR10 shipped across Epics 1–3, this epic addresses the remaining unscheduled deferred-work items — including the `IntegrityError` scoping flagged in 3 independent code reviews — before V2 planning begins.
+
+### Story 4.1: Worker Resilience & E2E Repair
+
+As a Developer,
+I want the worker's error-handling paths to be precise and the E2E suite to be trustworthy,
+So that failure modes are correctly counted and CI red actually means something.
+
+**Acceptance Criteria:**
+
+**Given** the current worker, validation, and sealing services
+**When** the resilience hardening is complete
+**Then** the 4 failing tests in `tests/e2e/test_epic2_e2e.py` are fixed to match Story 2.2/2.3 sealing + quarantine behavior and pass in CI
+**And** the `IntegrityError` catch in worker Phase 3 sealing is scoped to the specific concurrent-seal unique constraint, with other violations propagating or logged distinctly
+**And** the `IntegrityError` catch in `_validate_one` is scoped to the `corpus_record_id` UNIQUE constraint
+**And** `extraction_success` is no longer inflated by concurrent-seal `IntegrityError` handling or decorator-chain re-raises after a successful seal
+**And** `b""` empty `raw_email_bytes` no longer causes a permanent DISPATCHED retry loop — a per-record retry limit or dead-letter mechanism is added.
+
+### Story 4.2: Operational Hardening
+
+As the Admin,
+I want config and parsing edge cases handled,
+So that the system degrades safely under real-world conditions.
+
+**Acceptance Criteria:**
+
+**Given** the current IMAP, MCP, and worker configuration
+**When** the operational hardening is complete
+**Then** a startup warning is logged when `imap_use_ssl=False`
+**And** `expiry_at` ISO parsing in `configure_target` correctly handles non-Z-suffix offsets and date-only strings, producing UTC-aware datetimes
+**And** sealed records permanently missing their environmental fingerprint row (due to a crash between seal-commit and fingerprint-write) are detected and backfilled on a subsequent tick.
+
+### Story 4.3: Domain Vocabulary Formalization
+
+As a Developer,
+I want `parameter_name` and `admin_awareness_tier` to be type-safe enums,
+So that the domain vocabulary that has stabilized across 3 epics is enforced in code and the database.
+
+**Acceptance Criteria:**
+
+**Given** the finalized domain vocabulary (`vad`, `rvd`, `ebf`, tier levels per architecture.md)
+**When** the formalization is complete
+**Then** `ParameterName` and `AwarenessTier` enums exist in `domain/types.py`
+**And** Pydantic extraction/validation schemas use these enums
+**And** an Alembic migration adds DB check constraints on `parameter_name` and `admin_awareness_tier`, proven reversible (`upgrade head` → `downgrade base` → `upgrade head`).
+
+### Story 4.4: Test & Code Quality Cleanup
+
+As a Developer,
+I want test fixtures and minor code inconsistencies cleaned up,
+So that the suite stays maintainable as the project grows.
+
+**Acceptance Criteria:**
+
+**Given** the accumulated test-suite debt across Epics 2 and 3
+**When** the cleanup is complete
+**Then** `_unique_hash()` is extracted into `tests/utils.py` and used by Story 3.2/3.3 test files
+**And** `FakeIMAPClient` no longer re-delivers previously-fetched emails on subsequent `tick()` calls
+**And** `QuarantineRecordFactory` produces a valid parent `CorpusRecord` (or is documented as requiring one)
+**And** `FakeSMTPClient(raise_on_nth=1)` usage in `test_worker_quarantine.py` is robust to additional Phase 2 SMTP calls
+**And** `_make_reply_email` and `_seed_dispatched` test helpers are consolidated into `tests/utils.py`
+**And** an integration test proves `CalibrationService` double-blind isolation
+**And** `test_offset_rows_excluded_from_brier` asserts the correct excluded Brier value
+**And** a unit test exercises the real SQLAlchemy session path for `_get_last_ceremony_timestamp`/`_fetch_pending` in `ClosureService`
+**And** `trigger_closure_ceremony` MCP tool wiring follows the `tick()` DI pattern for consistency.
+
+### Story 4.5: Operator SOP Documentation
+
+As the Admin (Vlad),
+I want a written SOP for operating Apollo day-to-day,
+So that configuring targets, monitoring tick cadence, and interpreting calibration output doesn't require holding the entire system in my head.
+
+**Acceptance Criteria:**
+
+**Given** the fully operational Apollo system at the end of Epic 3
+**When** the SOP is complete
+**Then** it documents how to configure a target via `configure_target`
+**And** the expected `apollo tick` cadence and how to verify it's running
+**And** how to interpret `get_calibration_stats` output (Brier score, ECE, Wilson CI)
+**And** how to manually trigger a closure ceremony via `trigger_closure_ceremony`
+**And** it references the "Known Limitations / Accepted Risk (V1)" section of `architecture.md`.
+
 

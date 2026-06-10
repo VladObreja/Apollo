@@ -397,3 +397,17 @@ Naming conventions, test factory mandates, and error-handling logging rules are 
 
 **First Implementation Priority:**
 Initialize the core project structure via: `uv init --package --python 3.12` and scaffold the `src/apollo` directories.
+
+## Known Limitations / Accepted Risk (V1)
+
+Added 2026-06-10 via Correct Course (sprint-change-proposal-2026-06-10.md). The following items were identified during code review across Epics 1–3 and are deliberately accepted for V1 — no code changes are planned. They are documented here so they remain visible for V2 planning rather than living only in transient review notes.
+
+- **Prompt injection via unbounded `email_body`:** Asset-controlled email content is inserted verbatim into the LLM extraction prompt context with autoescape disabled. Accepted because there is a single trusted Asset.
+- **Unbounded quarantine retry loop:** No max-attempt guard on `quarantine_record` per `corpus_record_id` — a consistently unextractable reply could generate infinite clarification emails. Accepted given a single trusted Asset and low session volume.
+- **`clarification_sent_at=NULL` ambiguity after SIGKILL:** If the worker is killed between the T1 commit and the SMTP send, `clarification_sent_at=NULL` is indistinguishable from an SMTP failure, and no automatic resend mechanism exists. Accepted given low volume and Admin monitoring.
+- **No dedicated closure ceremony audit table:** The closure ceremony interval proxy uses `max(closed_at)` rather than a separate `ceremony_log` table. A dedicated audit table would be more robust but is not required for V1.
+- **Timezone-naive `last_sent` theoretical crash:** A timezone-naive `last_sent` timestamp would crash the closure interval subtraction with a `TypeError`. The `DateTime(timezone=True)` column type prevents naive storage in practice, so this is theoretical only.
+- **`NaN` `param_value` in calibration bucketing:** A `NaN` value would raise `ValueError` in `_param_bucket`/`_prob_bin`. `param_value` is validated as ≥0 by the extraction Pydantic schema upstream, so this path is not reachable in practice.
+- **Calibration bucket label cosmetic ambiguity:** Decade-boundary values (e.g., `param_value=10.0`) map to the next bucket (e.g., "10–20") even though the lower-bound label ("0–10") implies inclusion of 10. The bucketing logic is correct; only the label is cosmetically ambiguous.
+- **`computed_at` timestamp drift:** The calibration `computed_at` timestamp is stamped after the DB session closes, producing a negligible time gap versus query completion.
+- **`model_dump` `PydanticSerializationError` not wrapped in `SealingError`:** Already caught by the outer exception handler and counted as `extraction_failed`, but logged under a generic category rather than a sealing-specific one.
