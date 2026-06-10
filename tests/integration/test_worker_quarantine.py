@@ -284,3 +284,48 @@ class TestWorkerQuarantineIntegration:
         fresh_record = db_session.get(CorpusRecord, record.id)
         assert fresh_record is not None
         assert fresh_record.raw_email_bytes is None
+
+
+class TestWorkerEmptyRawBytesDeadLetter:
+    """AC5 — a `dispatched` record stuck with `raw_email_bytes == b""` (non-None but
+    falsy, so the IMAP poller's `is not None` check permanently skips it) must be
+    dead-lettered through QuarantineService rather than retried forever."""
+
+    def test_stuck_empty_raw_bytes_record_is_dead_lettered(
+        self,
+        db_session,
+        patched_db_url,  # type: ignore[no-untyped-def]
+    ) -> None:
+        coordinate = "DEAD/0001"
+        record = _seed_dispatched(db_session, coordinate)
+        record.raw_email_bytes = b""
+        db_session.add(record)
+        db_session.commit()
+
+        from apollo.services.worker import tick
+
+        # No new IMAP replies — the dead-letter step must run independently of
+        # the email-matching path.
+        tick(
+            imap_client=FakeIMAPClient([]),
+            llm_client=FakeLLM(responses=["{}", "{}"]),
+            smtp_client=FakeSMTPClient(),
+            env_client=FakeEnvDataClient(),
+            market_client=FakeMarketDataClient(),
+        )
+        db_session.expire_all()
+
+        qr = (
+            db_session.query(QuarantineRecord)
+            .filter_by(corpus_record_id=record.id)
+            .first()
+        )
+        assert qr is not None, (
+            "a stuck b'' raw_email_bytes record must be dead-lettered to quarantine_record"
+        )
+        assert qr.raw_email_bytes == b""
+
+        fresh_record = db_session.get(CorpusRecord, record.id)
+        assert fresh_record is not None
+        assert fresh_record.raw_email_bytes is None
+        assert fresh_record.status == TargetStatus.DISPATCHED.value

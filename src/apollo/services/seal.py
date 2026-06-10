@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 from datetime import UTC, datetime
 
+from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from apollo.db.models import CorpusRecord
@@ -61,3 +62,26 @@ class SealingService:
         session.add(record)
 
         return raw_hash
+
+    @staticmethod
+    @requires(Compartment.EXTRACTION_WRITE)
+    def fetch_stuck_empty_bytes_records(
+        session: Session, limit: int = 100
+    ) -> list[CorpusRecord]:
+        """Find dispatched records with `raw_email_bytes == b""` (non-None but empty).
+
+        These records are permanently invisible to EmailPollerService.fetch_new_session_emails
+        (its `is not None` check skips them forever) and must be dead-lettered via
+        QuarantineService rather than retried.
+        """
+        stmt = (
+            select(CorpusRecord)
+            .where(
+                and_(
+                    CorpusRecord.status == TargetStatus.DISPATCHED.value,
+                    CorpusRecord.raw_email_bytes == b"",
+                )
+            )
+            .limit(limit)
+        )
+        return list(session.execute(stmt).scalars().all())

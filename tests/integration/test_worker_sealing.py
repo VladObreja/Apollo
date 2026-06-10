@@ -15,10 +15,12 @@ from __future__ import annotations
 import email.mime.text
 import hashlib
 import json
+import logging
 from datetime import UTC, datetime, timedelta
 
 from apollo.db.models import CorpusRecord
 from apollo.domain.types import TargetStatus
+from tests.factories import CorpusRecordFactory
 from tests.utils import FakeIMAPClient, FakeLLM, FakeMarketDataClient, FakeSMTPClient
 
 
@@ -123,3 +125,64 @@ class TestWorkerSealingIntegration:
         assert record is not None
         assert record.status == TargetStatus.DISPATCHED.value
         assert record.raw_hash is None
+
+
+class TestWorkerConcurrentSealCollisionIntegration:
+    """AC2/AC4 — a concurrent-seal `ix_corpus_record_raw_hash` collision must be
+    treated as a benign "already sealed" warning, must roll back this tick's seal
+    (record stays dispatched), and must NOT inflate extraction_success."""
+
+    def test_concurrent_seal_collision_warns_and_does_not_seal(
+        self,
+        db_session,
+        patched_db_url,  # type: ignore[no-untyped-def]
+        caplog,
+    ) -> None:
+        coord = "C0DE/0001"
+        _seed_dispatched(db_session, coordinate=coord)
+
+        raw = _make_reply_email(
+            coord, "VAD: 80\nTime of measurement (UTC): 2026-06-05T10:00:00Z"
+        )
+        colliding_hash = hashlib.sha256(raw).hexdigest()
+
+        # Seed a second, already-sealed record whose raw_hash already equals the
+        # hash that sealing this tick's record would produce — the unique index
+        # ix_corpus_record_raw_hash will reject the commit for our record.
+        CorpusRecordFactory(
+            status=TargetStatus.SEALED.value,
+            raw_hash=colliding_hash,
+            sealed_at=datetime.now(UTC),
+            extraction_payload={"param_value": 1.0},
+        )
+
+        imap_client = FakeIMAPClient([raw])
+        llm_client = FakeLLM([_valid_extraction_json(80.0)])
+        fake_smtp = FakeSMTPClient()
+
+        from apollo.services.worker import tick
+
+        with caplog.at_level(logging.WARNING, logger="apollo.services.worker"):
+            tick(
+                smtp_client=fake_smtp,
+                imap_client=imap_client,
+                llm_client=llm_client,
+                market_client=FakeMarketDataClient(),
+            )
+
+        db_session.expire_all()
+        record = (
+            db_session.query(CorpusRecord)
+            .filter(CorpusRecord.double_blind_coordinate == coord)
+            .first()
+        )
+        assert record is not None
+        # Commit rolled back on the unique constraint violation — not sealed.
+        assert record.status == TargetStatus.DISPATCHED.value
+        assert record.raw_hash is None
+        assert record.sealed_at is None
+
+        warnings = [r.message for r in caplog.records if r.levelno == logging.WARNING]
+        errors = [r.message for r in caplog.records if r.levelno == logging.ERROR]
+        assert any("concurrent seal detected" in m for m in warnings), warnings
+        assert not any("unexpected integrity error" in m for m in errors), errors

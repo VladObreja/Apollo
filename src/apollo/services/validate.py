@@ -23,6 +23,10 @@ logger = logging.getLogger(__name__)
 VALIDATION_AGENT_VERSION = "0.1.0"
 OFFSET_THRESHOLD_SECONDS = 7200.0
 POSITIVE_CONVICTION_THRESHOLD = 50.0
+
+# Postgres-generated name for the inline `unique=True` on
+# validation_record.corpus_record_id (c1d2e3f4a5b6_add_market_validation.py).
+_VALIDATION_RECORD_UNIQUE_CONSTRAINT = "validation_record_corpus_record_id_key"
 YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?period1={p1}&period2={p2}&interval=1d"
 
 
@@ -236,12 +240,19 @@ class ValidationService:
         try:
             with session_factory.begin() as write_session:
                 write_session.add(vr)
-        except IntegrityError:
-            logger.info(
-                "validate: already validated — idempotent skip",
-                extra={"record_id": str(record.id)},
+        except IntegrityError as exc:
+            constraint_name = getattr(
+                getattr(exc.orig, "diag", None), "constraint_name", None
             )
-            return
+            if constraint_name == _VALIDATION_RECORD_UNIQUE_CONSTRAINT:
+                logger.info(
+                    "validate: already validated — idempotent skip",
+                    extra={"record_id": str(record.id)},
+                )
+                return
+            # Unexpected constraint violation — let validate_pending's generic
+            # except Exception handler log it as "validation crashed unexpectedly".
+            raise
 
         logger.info(
             "apollo.worker.tick: record validated",

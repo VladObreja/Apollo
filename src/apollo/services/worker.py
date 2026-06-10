@@ -61,6 +61,23 @@ logger = logging.getLogger(__name__)
 
 _TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 
+# The only unique constraint that can fire on a concurrent Phase 3 seal commit:
+# two ticks both compute the same SHA-256 of identical raw_email_bytes and both
+# attempt to set corpus_record.raw_hash (f6a7b8c9d0e1_add_sealing_columns.py:64).
+_CONCURRENT_SEAL_CONSTRAINT = "ix_corpus_record_raw_hash"
+
+
+def _is_concurrent_seal_collision(exc: IntegrityError) -> bool:
+    """True if `exc` is the expected concurrent-seal unique constraint violation.
+
+    Reads the Postgres constraint name off the underlying psycopg2 diagnostics
+    (`exc.orig.diag.constraint_name`) defensively via getattr, since `exc.orig`
+    is typed as `BaseException | None` and may not carry `.diag` (e.g. in tests
+    that construct a plain `Exception()` as `.orig`).
+    """
+    constraint_name = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
+    return constraint_name == _CONCURRENT_SEAL_CONSTRAINT
+
 
 def tick(
     smtp_client: SMTPClient | None = None,
@@ -293,12 +310,17 @@ def tick(
                         extra={"record_id": str(record.id), "error": str(fp_exc)},
                     )
         except IntegrityError as exc:
-            # Narrow to the expected concurrent-seal unique constraint violation.
-            # Any other IntegrityError re-raises as an unexpected crash.
-            if "corpus_record" in str(exc).lower() or "unique" in str(exc).lower():
+            # Narrow to the expected concurrent-seal unique constraint violation
+            # (ix_corpus_record_raw_hash). Any other IntegrityError is unexpected
+            # and counted/logged distinctly — it must not be silently treated as
+            # "already sealed".
+            if _is_concurrent_seal_collision(exc):
                 logger.warning(
                     "apollo.worker.tick: concurrent seal detected — record already sealed",
-                    extra={"record_id": str(record.id)},
+                    extra={
+                        "record_id": str(record.id),
+                        "constraint": _CONCURRENT_SEAL_CONSTRAINT,
+                    },
                 )
             else:
                 extraction_failed += 1
@@ -342,6 +364,38 @@ def tick(
                 "failed": extraction_failed,
             },
         )
+
+    # ------------------------------------------------------------------
+    # Phase 3b: dead-letter records stuck with raw_email_bytes == b"" (AC5)
+    #
+    # A dispatched record with raw_email_bytes already set to b"" (non-None
+    # but falsy) is permanently invisible to
+    # EmailPollerService.fetch_new_session_emails (its `is not None` check
+    # skips it forever). Route it through QuarantineService — the same path
+    # used for ExtractionSchemaError — to clear raw_email_bytes (un-sticking
+    # the poller) and record durable evidence of the dead-letter.
+    # ------------------------------------------------------------------
+    with SessionFactory() as read_session:
+        stuck_records = SealingService.fetch_stuck_empty_bytes_records(read_session)
+
+    for stuck_record in stuck_records:
+        logger.warning(
+            "apollo.worker.tick: dead-lettering record stuck with empty raw_email_bytes",
+            extra={"record_id": str(stuck_record.id)},
+        )
+        try:
+            QuarantineService.quarantine(
+                stuck_record,
+                ExtractionSchemaError("raw_email_bytes is empty (b'') — dead-lettered"),
+                env,
+                smtp_client,
+                SessionFactory,
+            )
+        except Exception as exc:
+            logger.error(
+                "apollo.worker.tick: dead-letter quarantine failed",
+                extra={"record_id": str(stuck_record.id), "error": str(exc)},
+            )
 
     # ------------------------------------------------------------------
     # Phase 4: ground-truth validation (sealed, past expiry → validation_record)

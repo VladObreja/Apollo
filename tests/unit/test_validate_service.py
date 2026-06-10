@@ -81,11 +81,24 @@ def _make_mock_session_factory(
     return mock_factory, written
 
 
-def _make_integrity_error_factory() -> MagicMock:
+class _FakeDiag:
+    def __init__(self, constraint_name: str | None) -> None:
+        self.constraint_name = constraint_name
+
+
+class _FakeOrig(Exception):
+    def __init__(self, constraint_name: str | None) -> None:
+        super().__init__("duplicate key")
+        self.diag = _FakeDiag(constraint_name)
+
+
+def _make_integrity_error_factory(
+    constraint_name: str = "validation_record_corpus_record_id_key",
+) -> MagicMock:
     @contextmanager
     def _raising_begin():  # type: ignore[no-untyped-def]
         yield MagicMock()
-        raise SaIntegrityError("duplicate key", {}, Exception())
+        raise SaIntegrityError("duplicate key", {}, _FakeOrig(constraint_name))
 
     mock_factory = MagicMock()
     mock_factory.begin = _raising_begin
@@ -211,6 +224,21 @@ class TestValidateOne:
 
         # Must NOT raise
         ValidationService._validate_one(record, datetime.now(UTC), client, mock_factory)
+
+    def test_unexpected_integrity_error_propagates(self) -> None:
+        """An IntegrityError on a different constraint must NOT be swallowed as 'already validated'."""
+        expiry = datetime(2026, 6, 5, 21, 0, 0, tzinfo=UTC)
+        record = _make_record(ticker="GC=F", expiry_at=expiry)
+        ohlcv = _make_ohlcv(expiry_at=expiry)
+        client = FakeMarketDataClient({"GC=F": ohlcv})
+        mock_factory = _make_integrity_error_factory(
+            constraint_name="some_other_constraint"
+        )
+
+        with pytest.raises(SaIntegrityError):
+            ValidationService._validate_one(
+                record, datetime.now(UTC), client, mock_factory
+            )
 
     def test_market_data_error_propagates(self) -> None:
         """MarketDataError from client must propagate to caller (caught in validate_pending)."""

@@ -36,7 +36,7 @@ from datetime import UTC, datetime
 import pytest
 
 from apollo.config import Settings
-from apollo.db.models import CorpusRecord
+from apollo.db.models import CorpusRecord, QuarantineRecord
 from apollo.domain.models import (
     AdminStateSnapshot,
     TargetConfiguration,
@@ -227,7 +227,11 @@ class TestEpic2InboundIngestion:
     def test_full_pipeline_status_stays_dispatched(
         self, db_session, patched_db_url, mailpit_smtp
     ) -> None:
-        """Status stays 'dispatched' after Phase 3 — sealing transition belongs to Story 2.2."""
+        """Status advances to 'sealed' after Phase 3 — sealing transition is Story 2.2.
+
+        NOTE: name retained from Story 2.1 for AC traceability; behavior is now
+        'sealed', not 'dispatched' (Story 2.2 made sealing happen in Phase 3).
+        """
         TargetService.create_target_configuration(_make_config())
         tick(smtp_client=mailpit_smtp, imap_client=FakeIMAPClient([]))
 
@@ -249,14 +253,19 @@ class TestEpic2InboundIngestion:
             .first()
         )
         assert record is not None
-        assert record.status == TargetStatus.DISPATCHED.value, (
-            f"Expected 'dispatched', got '{record.status}' — sealing is Story 2.2"
+        assert record.status == TargetStatus.SEALED.value, (
+            f"Expected 'sealed', got '{record.status}' — sealing happens in Phase 3 (Story 2.2)"
         )
 
     def test_raw_bytes_stored_even_when_llm_extraction_fails(
         self, db_session, patched_db_url, mailpit_smtp
     ) -> None:
-        """Fail-operational: raw_email_bytes are durable even when LLM fails both attempts."""
+        """Fail-operational: raw_email_bytes are durable (in quarantine_record) even when LLM fails both attempts.
+
+        Story 2.3 quarantine clears corpus_record.raw_email_bytes back to None (so the
+        IMAP poller will accept a clarification reply) and copies the bytes durably
+        onto a new quarantine_record row instead.
+        """
         TargetService.create_target_configuration(_make_config())
         tick(smtp_client=mailpit_smtp, imap_client=FakeIMAPClient([]))
 
@@ -279,15 +288,29 @@ class TestEpic2InboundIngestion:
             .first()
         )
         assert record is not None
-        assert record.raw_email_bytes is not None, (
-            "raw_email_bytes must survive LLM extraction failure (stored before LLM call)"
+        quarantine_record = (
+            db_session.query(QuarantineRecord)
+            .filter(QuarantineRecord.corpus_record_id == record.id)
+            .first()
+        )
+        assert quarantine_record is not None, (
+            "a quarantine_record must be created on extraction failure"
+        )
+        assert quarantine_record.raw_email_bytes is not None, (
+            "raw_email_bytes must survive LLM extraction failure (durable on quarantine_record)"
         )
         assert record.status == TargetStatus.DISPATCHED.value
 
     def test_second_tick_phase3_does_not_reingest_already_stored_reply(
         self, db_session, patched_db_url, mailpit_smtp
     ) -> None:
-        """Running Phase 3 twice with the same reply must not duplicate or corrupt raw bytes."""
+        """Running Phase 3 twice with the same reply must not duplicate or re-seal the record.
+
+        After the first tick the record is 'sealed' (Story 2.2). The second tick's
+        ``fetch_new_session_emails`` query only matches ``status == DISPATCHED``
+        (email_poller.py), so the now-sealed record is simply skipped — assert that
+        sealing-derived fields are byte-for-byte identical across both ticks.
+        """
         TargetService.create_target_configuration(_make_config())
         tick(smtp_client=mailpit_smtp, imap_client=FakeIMAPClient([]))
 
@@ -297,7 +320,7 @@ class TestEpic2InboundIngestion:
 
         reply = _make_reply_email(coord, "PARAM (vad): 65")
 
-        # First Phase 3 pass — ingests the reply
+        # First Phase 3 pass — ingests the reply and seals the record
         tick(
             smtp_client=FakeSMTPClient(),
             imap_client=FakeIMAPClient([reply]),
@@ -311,6 +334,10 @@ class TestEpic2InboundIngestion:
             .first()
         )
         assert record_after_first is not None
+        assert record_after_first.status == TargetStatus.SEALED.value
+        assert record_after_first.raw_hash is not None
+        assert record_after_first.sealed_at is not None
+
         # Second Phase 3 pass — FakeIMAPClient returns the same email again
         # (simulating idempotency: in production the SEEN flag prevents re-fetch)
         tick(
@@ -326,10 +353,14 @@ class TestEpic2InboundIngestion:
             .first()
         )
         assert record_after_second is not None
-        # Record must still be in dispatched state — not corrupted
-        assert record_after_second.status == TargetStatus.DISPATCHED.value
-        # raw_email_bytes must still be present
-        assert record_after_second.raw_email_bytes is not None
+        assert record_after_second.status == TargetStatus.SEALED.value
+        # No re-sealing or duplication occurred on the second tick
+        assert record_after_second.raw_hash == record_after_first.raw_hash
+        assert (
+            record_after_second.extraction_payload
+            == record_after_first.extraction_payload
+        )
+        assert record_after_second.sealed_at == record_after_first.sealed_at
 
 
 # ---------------------------------------------------------------------------
@@ -554,8 +585,17 @@ class TestEpic2MultiSessionPipeline:
                 .first()
             )
             assert record is not None
-            # raw bytes stored before the LLM call — must survive extraction failure
-            assert record.raw_email_bytes is not None, (
+            # raw bytes stored before the LLM call — must survive extraction failure,
+            # durably, on the quarantine_record (Story 2.3 clears corpus_record.raw_email_bytes)
+            quarantine_record = (
+                db_session.query(QuarantineRecord)
+                .filter(QuarantineRecord.corpus_record_id == record.id)
+                .first()
+            )
+            assert quarantine_record is not None, (
+                f"a quarantine_record must be created for {coord}"
+            )
+            assert quarantine_record.raw_email_bytes is not None, (
                 f"raw_email_bytes must be durable even after LLM failure for {coord}"
             )
             assert record.status == TargetStatus.DISPATCHED.value
