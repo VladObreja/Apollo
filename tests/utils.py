@@ -101,3 +101,18 @@ class FakeMarketDataClient:
         if ticker not in self._responses:
             raise MarketDataError(f"No canned response for ticker {ticker!r}")
         return self._responses[ticker]
+
+
+class FakeDiag:
+    """Mimics psycopg2's `IntegrityError.orig.diag` for constraint-name checks."""
+
+    def __init__(self, constraint_name: str | None) -> None:
+        self.constraint_name = constraint_name
+
+
+class FakeOrig(Exception):
+    """Mimics psycopg2's `IntegrityError.orig`, carrying a `.diag.constraint_name`."""
+
+    def __init__(self, constraint_name: str | None) -> None:
+        super().__init__("duplicate key")
+        self.diag = FakeDiag(constraint_name)

@@ -15,6 +15,7 @@ Verifies:
 from __future__ import annotations
 
 import email.mime.text
+import hashlib
 import json
 from datetime import UTC, datetime, timedelta
 
@@ -22,7 +23,7 @@ from sqlalchemy import select
 
 from apollo.db.models import CorpusRecord, EnvFingerprint
 from apollo.domain.types import TargetStatus
-from tests.factories import CorpusRecordFactory
+from tests.factories import CorpusRecordFactory, EnvFingerprintFactory
 from tests.utils import (
     FakeEnvDataClient,
     FakeIMAPClient,
@@ -63,6 +64,23 @@ def _seed_dispatched(session, coordinate: str) -> CorpusRecord:  # type: ignore[
         queued_at=datetime.now(UTC) - timedelta(minutes=5),
         dispatched_at=datetime.now(UTC) - timedelta(minutes=4),
         dispatch_agent_version="0.1.0",
+    )
+    session.flush()
+    return record  # type: ignore[return-value]
+
+
+def _seed_sealed(  # type: ignore[no-untyped-def]
+    session,
+    coordinate: str,
+    extraction_payload: dict[str, object],
+) -> CorpusRecord:
+    record = CorpusRecordFactory(
+        status=TargetStatus.SEALED.value,
+        double_blind_coordinate=coordinate,
+        sealed_at=datetime.now(UTC) - timedelta(minutes=10),
+        seal_agent_version="0.1.0",
+        raw_hash=hashlib.sha256(coordinate.encode()).hexdigest(),
+        extraction_payload=extraction_payload,
     )
     session.flush()
     return record  # type: ignore[return-value]
@@ -208,3 +226,123 @@ class TestWorkerFingerprintIntegration:
             select(EnvFingerprint).where(EnvFingerprint.corpus_record_id == record.id)
         ).scalar_one()
         assert fp.retrieval_status == "failed"
+
+
+class TestWorkerFingerprintBackfill:
+    """AC3 — Phase 3c backfills env_fingerprint rows for sealed records that
+    are permanently missing one (e.g. a crash between seal-commit and
+    fingerprint-write)."""
+
+    def test_backfills_missing_fingerprint_for_sealed_record(
+        self,
+        db_session,
+        patched_db_url,  # type: ignore[no-untyped-def]
+    ) -> None:
+        from apollo.services.worker import tick
+
+        record = _seed_sealed(
+            db_session,
+            "FP10/AA10",
+            extraction_payload={
+                "param_value": 85.0,
+                "measurement_timestamp": "2026-06-06T10:00:00+00:00",
+                "asset_location": None,
+                "sleep_quality": None,
+                "psychological_state": None,
+                "social_field": None,
+                "asset_notes": None,
+            },
+        )
+
+        tick(
+            imap_client=FakeIMAPClient([]),
+            llm_client=FakeLLM([]),
+            smtp_client=FakeSMTPClient(),
+            env_client=FakeEnvDataClient(kp=2.5, solar_wind=400.0),
+            market_client=FakeMarketDataClient(),
+        )
+        db_session.expire_all()
+
+        fp = db_session.execute(
+            select(EnvFingerprint).where(EnvFingerprint.corpus_record_id == record.id)
+        ).scalar_one()
+        assert fp.measurement_timestamp == datetime(2026, 6, 6, 10, 0, tzinfo=UTC)
+        assert fp.kp_index == 2.5
+        assert fp.solar_wind_speed == 400.0
+        assert fp.retrieval_status == "ok"
+
+    def test_does_not_reprocess_already_fingerprinted_record(
+        self,
+        db_session,
+        patched_db_url,  # type: ignore[no-untyped-def]
+    ) -> None:
+        from apollo.services.worker import tick
+
+        record = _seed_sealed(
+            db_session,
+            "FP11/AA11",
+            extraction_payload={
+                "param_value": 85.0,
+                "measurement_timestamp": "2026-06-06T10:00:00+00:00",
+            },
+        )
+        EnvFingerprintFactory(
+            corpus_record_id=record.id,
+            fingerprinted_at=datetime(2026, 1, 1, tzinfo=UTC),
+            measurement_timestamp=datetime(2026, 6, 6, 10, 0, tzinfo=UTC),
+            kp_index=1.0,
+            solar_wind_speed=300.0,
+            retrieval_status="ok",
+        )
+        db_session.flush()
+
+        tick(
+            imap_client=FakeIMAPClient([]),
+            llm_client=FakeLLM([]),
+            smtp_client=FakeSMTPClient(),
+            env_client=FakeEnvDataClient(kp=2.5, solar_wind=400.0),
+            market_client=FakeMarketDataClient(),
+        )
+        db_session.expire_all()
+
+        rows = (
+            db_session.execute(
+                select(EnvFingerprint).where(
+                    EnvFingerprint.corpus_record_id == record.id
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(rows) == 1
+        assert rows[0].fingerprinted_at == datetime(2026, 1, 1, tzinfo=UTC)
+        assert rows[0].kp_index == 1.0
+
+    def test_backfills_record_with_minimal_extraction_payload(
+        self,
+        db_session,
+        patched_db_url,  # type: ignore[no-untyped-def]
+    ) -> None:
+        """A sealed record with no measurement_timestamp in its payload (older
+        or minimal payload shape) must still get backfilled, falling back to
+        received_at/now per FingerprintService.attach's existing fallback."""
+        from apollo.services.worker import tick
+
+        record = _seed_sealed(
+            db_session, "FP12/AA12", extraction_payload={"param_value": 50.0}
+        )
+
+        tick(
+            imap_client=FakeIMAPClient([]),
+            llm_client=FakeLLM([]),
+            smtp_client=FakeSMTPClient(),
+            env_client=FakeEnvDataClient(kp=2.5, solar_wind=400.0),
+            market_client=FakeMarketDataClient(),
+        )
+        db_session.expire_all()
+
+        fp = db_session.execute(
+            select(EnvFingerprint).where(EnvFingerprint.corpus_record_id == record.id)
+        ).scalar_one()
+        assert fp.retrieval_status == "ok"
+        assert fp.measurement_timestamp is not None

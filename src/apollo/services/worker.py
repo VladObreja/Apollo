@@ -13,7 +13,9 @@ Idempotency is guaranteed by:
 """
 
 import logging
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from jinja2 import Environment, FileSystemLoader
 
@@ -77,6 +79,24 @@ def _is_concurrent_seal_collision(exc: IntegrityError) -> bool:
     """
     constraint_name = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
     return constraint_name == _CONCURRENT_SEAL_CONSTRAINT
+
+
+def _extract_measurement_timestamp(
+    extraction_payload: dict[str, Any] | None,
+) -> datetime | None:
+    """Recover `measurement_timestamp` from a sealed record's `extraction_payload`.
+
+    `extraction_payload` is the JSONB dict produced by
+    `ExtractionResultSchema.model_dump(mode="json")` at seal time — if present,
+    `measurement_timestamp` is an ISO-8601 string (already tz-aware per
+    `ExtractionResultSchema.validate_tz`). Returns `None` if absent or `null`.
+    """
+    if extraction_payload is None:
+        return None
+    value = extraction_payload.get("measurement_timestamp")
+    if not isinstance(value, str):
+        return None
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
 def tick(
@@ -390,12 +410,55 @@ def tick(
                 env,
                 smtp_client,
                 SessionFactory,
+                quarantine_reason="empty_raw_bytes_dead_letter",
             )
         except Exception as exc:
             logger.error(
                 "apollo.worker.tick: dead-letter quarantine failed",
                 extra={"record_id": str(stuck_record.id), "error": str(exc)},
             )
+
+    if stuck_records:
+        logger.info(
+            "apollo.worker.tick: dead-letter phase complete",
+            extra={"dead_lettered": len(stuck_records)},
+        )
+
+    # ------------------------------------------------------------------
+    # Phase 3c: backfill missing env_fingerprint rows for sealed records (AC3)
+    #
+    # A sealed record permanently missing its env_fingerprint row (e.g. a
+    # crash between seal-commit and fingerprint-write) is detected here and
+    # backfilled. FingerprintService.attach is idempotent (silently skips an
+    # IntegrityError if a fingerprint row already exists), so this phase is
+    # safe to re-run every tick.
+    # ------------------------------------------------------------------
+    with SessionFactory() as read_session:
+        missing_fp_records = (
+            FingerprintService.fetch_sealed_records_missing_fingerprint(read_session)
+        )
+
+    for fp_record in missing_fp_records:
+        measurement_ts = _extract_measurement_timestamp(fp_record.extraction_payload)
+        logger.info(
+            "apollo.worker.tick: backfilling missing env_fingerprint",
+            extra={"record_id": str(fp_record.id)},
+        )
+        try:
+            FingerprintService.attach(
+                fp_record, measurement_ts, env_client, SessionFactory
+            )
+        except Exception as exc:
+            logger.error(
+                "apollo.worker.tick: fingerprint backfill failed",
+                extra={"record_id": str(fp_record.id), "error": str(exc)},
+            )
+
+    if missing_fp_records:
+        logger.info(
+            "apollo.worker.tick: fingerprint backfill phase complete",
+            extra={"backfilled": len(missing_fp_records)},
+        )
 
     # ------------------------------------------------------------------
     # Phase 4: ground-truth validation (sealed, past expiry → validation_record)

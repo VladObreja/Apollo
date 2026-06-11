@@ -324,6 +324,9 @@ class TestWorkerEmptyRawBytesDeadLetter:
             "a stuck b'' raw_email_bytes record must be dead-lettered to quarantine_record"
         )
         assert qr.raw_email_bytes == b""
+        assert qr.quarantine_reason == "empty_raw_bytes_dead_letter", (
+            "must be distinguishable from a real LLM extraction failure"
+        )
 
         fresh_record = db_session.get(CorpusRecord, record.id)
         assert fresh_record is not None

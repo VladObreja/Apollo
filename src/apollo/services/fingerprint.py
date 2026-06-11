@@ -7,11 +7,13 @@ from datetime import UTC, datetime
 from typing import Protocol, cast
 from uuid import uuid4
 
+from sqlalchemy import and_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from apollo.db.models import CorpusRecord, EnvFingerprint
 from apollo.domain.compartments import Compartment, requires
+from apollo.domain.types import TargetStatus
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +101,32 @@ class NoaaClientImpl:
 
 
 class FingerprintService:
+    @staticmethod
+    @requires(Compartment.EXTRACTION_WRITE)
+    def fetch_sealed_records_missing_fingerprint(
+        session: Session, limit: int = 100
+    ) -> list[CorpusRecord]:
+        """Find sealed records with no corresponding env_fingerprint row.
+
+        These are records that were sealed but never received an environmental
+        fingerprint (e.g. a crash between seal-commit and fingerprint-write).
+        Used by worker.py Phase 3c to backfill them on a subsequent tick.
+        """
+        stmt = (
+            select(CorpusRecord)
+            .outerjoin(
+                EnvFingerprint, EnvFingerprint.corpus_record_id == CorpusRecord.id
+            )
+            .where(
+                and_(
+                    CorpusRecord.status == TargetStatus.SEALED.value,
+                    EnvFingerprint.id.is_(None),
+                )
+            )
+            .limit(limit)
+        )
+        return list(session.execute(stmt).scalars().all())
+
     @staticmethod
     @requires(Compartment.EXTRACTION_WRITE)
     def attach(

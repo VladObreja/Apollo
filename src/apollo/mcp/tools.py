@@ -16,6 +16,25 @@ from apollo.mcp.server import mcp
 from apollo.services.target import TargetService
 
 
+def _parse_expiry_at(expiry_at: str | None) -> datetime | None:
+    """Parse an ISO-8601 datetime or date string into a UTC-aware datetime.
+
+    Accepts a `Z` suffix, explicit `+HH:MM`/`-HH:MM` offsets, or a bare
+    date/naive datetime (assumed UTC). Returns `None` if `expiry_at` is `None`.
+    """
+    if expiry_at is None:
+        return None
+    try:
+        parsed = datetime.fromisoformat(expiry_at.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError(
+            f"expiry_at must be a valid ISO-8601 datetime or date (e.g. '2026-06-10T21:00:00Z' or '2026-06-10'): {exc}"
+        ) from exc
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
 @mcp.tool()
 def configure_target(
     target_statement: str,
@@ -44,27 +63,14 @@ def configure_target(
         real_money_at_stake: 2x2 Stakes Matrix — whether real capital is objectively at stake.
         asset_financial_awareness: 2x2 Stakes Matrix — whether the Asset believes capital is at stake.
         ticker: Market symbol for ground-truth validation (e.g. 'GC=F' for Gold, 'EURUSD=X' for EUR/USD).
-        expiry_at: ISO-8601 UTC datetime when the market outcome should be checked (e.g. '2026-06-10T21:00:00Z'). Must include a timezone offset.
+        expiry_at: ISO-8601 datetime or date when the market outcome should be checked (e.g. '2026-06-10T21:00:00Z'). Accepts a 'Z' suffix, explicit '+HH:MM'/'-HH:MM' offsets, or a bare date/naive datetime (assumed UTC).
         threshold_pct: Required percentage change for a positive outcome (e.g. 9.0 means 9%).
         threshold_direction: Direction for a positive outcome: 'UP' or 'DOWN'.
 
     Returns:
         Confirmation string with the assigned target configuration ID.
     """
-    expiry_dt: datetime | None = None
-    if expiry_at is not None:
-        try:
-            parsed = datetime.fromisoformat(expiry_at.replace("Z", "+00:00"))
-        except ValueError as exc:
-            raise ValueError(
-                f"expiry_at must be a valid ISO-8601 datetime with a timezone offset (e.g. '2026-06-10T21:00:00Z'): {exc}"
-            ) from exc
-        if parsed.tzinfo is None:
-            raise ValueError(
-                "expiry_at must include a timezone offset (e.g. '2026-06-10T21:00:00Z'). "
-                "Naive datetimes are not accepted."
-            )
-        expiry_dt = parsed.astimezone(UTC)
+    expiry_dt = _parse_expiry_at(expiry_at)
 
     target = TargetStatement(statement=target_statement)
     parameter = TargetParameter(name=parameter_name)

@@ -18,8 +18,9 @@ from apollo.services.validate import (
     OHLCVResult,
     ValidationService,
     _day_unix_range,
+    _VALIDATION_RECORD_UNIQUE_CONSTRAINT,
 )
-from tests.utils import FakeMarketDataClient
+from tests.utils import FakeMarketDataClient, FakeOrig
 
 
 # ---------------------------------------------------------------------------
@@ -81,24 +82,13 @@ def _make_mock_session_factory(
     return mock_factory, written
 
 
-class _FakeDiag:
-    def __init__(self, constraint_name: str | None) -> None:
-        self.constraint_name = constraint_name
-
-
-class _FakeOrig(Exception):
-    def __init__(self, constraint_name: str | None) -> None:
-        super().__init__("duplicate key")
-        self.diag = _FakeDiag(constraint_name)
-
-
 def _make_integrity_error_factory(
-    constraint_name: str = "validation_record_corpus_record_id_key",
+    constraint_name: str = _VALIDATION_RECORD_UNIQUE_CONSTRAINT,
 ) -> MagicMock:
     @contextmanager
     def _raising_begin():  # type: ignore[no-untyped-def]
         yield MagicMock()
-        raise SaIntegrityError("duplicate key", {}, _FakeOrig(constraint_name))
+        raise SaIntegrityError("duplicate key", {}, FakeOrig(constraint_name))
 
     mock_factory = MagicMock()
     mock_factory.begin = _raising_begin

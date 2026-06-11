@@ -40,6 +40,7 @@ class QuarantineService:
         smtp_client: SMTPClient,
         session_factory: sessionmaker[Session],
         agent_version: str = AGENT_VERSION,
+        quarantine_reason: str = "extraction_schema_error",
     ) -> None:
         """Quarantine a failed extraction and send a clarification email to the Asset.
 
@@ -50,6 +51,9 @@ class QuarantineService:
             smtp_client: SMTPClient implementation for sending the clarification.
             session_factory: SQLAlchemy sessionmaker for write transactions.
             agent_version: Apollo package version string.
+            quarantine_reason: Category recorded on quarantine_record.quarantine_reason
+                for operator/calibration triage (e.g. "empty_raw_bytes_dead_letter"
+                for records dead-lettered without an extraction attempt).
 
         Raises:
             QuarantineError: If the record is not found, raw_email_bytes is None,
@@ -84,7 +88,7 @@ class QuarantineService:
                 id=quarantine_id,
                 corpus_record_id=fresh.id,
                 raw_email_bytes=fresh.raw_email_bytes,
-                quarantine_reason="extraction_schema_error",
+                quarantine_reason=quarantine_reason,
                 error_detail=str(exc),
                 quarantined_at=datetime.now(UTC),
             )

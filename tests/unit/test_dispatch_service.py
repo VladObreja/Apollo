@@ -274,6 +274,79 @@ class TestSettingsDefaults:
             else:
                 os.environ.pop("OLLAMA_MODEL_DIGEST", None)
 
+    def test_imap_use_ssl_false_logs_startup_warning(self, caplog: Any) -> None:
+        """A startup warning is logged when imap_use_ssl is False (the default)."""
+        import logging
+        import os
+
+        saved_ssl = os.environ.pop("IMAP_USE_SSL", None)
+        saved_user = os.environ.get("IMAP_USERNAME")
+        os.environ["IMAP_USERNAME"] = "test_user@proton.me"
+        saved_digest = os.environ.get("OLLAMA_MODEL_DIGEST")
+        os.environ["OLLAMA_MODEL_DIGEST"] = "sha256:dummy"
+
+        try:
+            from apollo.config import Settings
+
+            with caplog.at_level(logging.WARNING, logger="apollo.config"):
+                s = Settings()
+
+            assert s.imap_use_ssl is False
+            assert any(
+                "imap_use_ssl" in r.message and r.levelno == logging.WARNING
+                for r in caplog.records
+            ), caplog.records
+        finally:
+            if saved_ssl is not None:
+                os.environ["IMAP_USE_SSL"] = saved_ssl
+            else:
+                os.environ.pop("IMAP_USE_SSL", None)
+            if saved_user is not None:
+                os.environ["IMAP_USERNAME"] = saved_user
+            else:
+                os.environ.pop("IMAP_USERNAME", None)
+            if saved_digest is not None:
+                os.environ["OLLAMA_MODEL_DIGEST"] = saved_digest
+            else:
+                os.environ.pop("OLLAMA_MODEL_DIGEST", None)
+
+    def test_imap_use_ssl_true_does_not_log_warning(self, caplog: Any) -> None:
+        """No startup warning is logged when imap_use_ssl is True."""
+        import logging
+        import os
+
+        saved_ssl = os.environ.get("IMAP_USE_SSL")
+        os.environ["IMAP_USE_SSL"] = "true"
+        saved_user = os.environ.get("IMAP_USERNAME")
+        os.environ["IMAP_USERNAME"] = "test_user@proton.me"
+        saved_digest = os.environ.get("OLLAMA_MODEL_DIGEST")
+        os.environ["OLLAMA_MODEL_DIGEST"] = "sha256:dummy"
+
+        try:
+            from apollo.config import Settings
+
+            with caplog.at_level(logging.WARNING, logger="apollo.config"):
+                s = Settings()
+
+            assert s.imap_use_ssl is True
+            assert not any(
+                "imap_use_ssl" in r.message and r.levelno == logging.WARNING
+                for r in caplog.records
+            ), caplog.records
+        finally:
+            if saved_ssl is not None:
+                os.environ["IMAP_USE_SSL"] = saved_ssl
+            else:
+                os.environ.pop("IMAP_USE_SSL", None)
+            if saved_user is not None:
+                os.environ["IMAP_USERNAME"] = saved_user
+            else:
+                os.environ.pop("IMAP_USERNAME", None)
+            if saved_digest is not None:
+                os.environ["OLLAMA_MODEL_DIGEST"] = saved_digest
+            else:
+                os.environ.pop("OLLAMA_MODEL_DIGEST", None)
+
     def test_ollama_defaults_are_set(self) -> None:
         """Settings must have Ollama fields with sensible defaults."""
         import os

@@ -1,7 +1,10 @@
+import logging
 from typing import Any
 
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -44,6 +47,13 @@ class Settings(BaseSettings):
         if not v.strip():
             raise ValueError(f"{info.field_name} must not be empty")
         return v
+
+    def model_post_init(self, __context: Any) -> None:
+        if not self.imap_use_ssl:
+            logger.warning(
+                "apollo.config: IMAP connection is unencrypted (imap_use_ssl=False)",
+                extra={"imap_use_ssl": False},
+            )
 
 
 settings = Settings()
