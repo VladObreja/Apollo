@@ -96,7 +96,10 @@ def _extract_measurement_timestamp(
     value = extraction_payload.get("measurement_timestamp")
     if not isinstance(value, str):
         return None
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
 
 
 def tick(

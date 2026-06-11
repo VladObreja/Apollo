@@ -4,7 +4,7 @@ baseline_commit: 5afc82ba6be4141e453272d10962d0fd70239910
 
 # Story 4.2: Operational Hardening
 
-Status: review
+Status: done
 
 ## Story
 
@@ -74,6 +74,16 @@ so that the system degrades safely under real-world conditions.
   - [x] `uv run pytest tests/unit/` — all pass.
   - [x] `uv run pytest tests/integration/` (requires Postgres testcontainer / Docker) — all pass.
   - [x] `docker-compose up -d mailpit && uv run pytest tests/e2e/` — all pass (no e2e changes expected, but Phase 3c runs on every tick and must not break existing e2e flows).
+
+### Review Findings
+
+- [x] [Review][Patch] Phase 3c: unguarded `ValueError` in `_extract_measurement_timestamp` could crash `tick()` on a malformed `measurement_timestamp` string, aborting the rest of Phase 3c and skipping Phase 4 validation entirely — fixed by wrapping `datetime.fromisoformat` in `try/except ValueError: return None`, plus a regression test `test_malformed_string_returns_none` [src/apollo/services/worker.py:99; tests/unit/test_worker_helpers.py]
+- [x] [Review][Patch] `config.py` `model_post_init` logged `extra={"imap_use_ssl": False}` as a hardcoded literal instead of `self.imap_use_ssl` — fixed to reference `self.imap_use_ssl` [src/apollo/config.py:55]
+- [x] [Review][Patch] File List/Change Log didn't document the bundled "story-4.1 review follow-up" changes (quarantine_reason param, Phase 3b summary log, tests/utils.py shared fakes, test refactors) — amended File List and Change Log to match the actual commit
+- [x] [Review][Defer] `tests/integration/test_worker_fingerprint.py::test_does_not_reprocess_already_fingerprinted_record` doesn't assert `solar_wind_speed`/`retrieval_status` are unchanged, only `fingerprinted_at`/`kp_index` [tests/integration/test_worker_fingerprint.py] — deferred, test-coverage enhancement
+- [x] [Review][Defer] `tests/integration/test_worker_fingerprint.py::test_backfills_record_with_minimal_extraction_payload` asserts `measurement_timestamp is not None` but doesn't verify the documented `received_at`/`now()` fallback was actually used [tests/integration/test_worker_fingerprint.py] — deferred, test-coverage enhancement
+- [x] [Review][Defer] Phase 3c `fetch_sealed_records_missing_fingerprint(limit=100)` has no backlog-size logging if more than 100 sealed records lack fingerprints [src/apollo/services/fingerprint.py:112-136; src/apollo/services/worker.py Phase 3c] — deferred, observability enhancement
+- [x] [Review][Defer] New AC1 tests in `test_dispatch_service.py` duplicate ~30 lines of env-var save/restore boilerplate per test; `monkeypatch.setenv` would simplify [tests/unit/test_dispatch_service.py] — deferred, follows existing file convention
 
 ## Dev Notes
 
@@ -192,6 +202,15 @@ Claude Sonnet 4.6 (claude-sonnet-4-6) — Amelia (Dev Agent)
 - `tests/unit/test_worker_helpers.py` — AC3: added `TestExtractMeasurementTimestamp` (5 tests).
 - `tests/integration/test_worker_fingerprint.py` — AC3: added `_seed_sealed` helper and `TestWorkerFingerprintBackfill` (3 tests).
 
+### Story 4.1 Review Follow-ups (bundled in this commit)
+
+- `src/apollo/services/quarantine.py` — added `quarantine_reason` parameter to `QuarantineService.quarantine` (default `"extraction_schema_error"`, preserving prior behavior for the Phase 3 extraction-failure path).
+- `src/apollo/services/worker.py` — Phase 3b dead-letter call now passes `quarantine_reason="empty_raw_bytes_dead_letter"` so dead-lettered records are distinguishable from real extraction failures; added a `"dead-letter phase complete"` summary log to Phase 3b (mirrors Phase 3c's summary-log convention).
+- `tests/integration/test_worker_quarantine.py` — added assertion that dead-lettered records get `quarantine_reason == "empty_raw_bytes_dead_letter"`.
+- `tests/utils.py` — consolidated `FakeDiag`/`FakeOrig` (previously duplicated as `_FakeDiag`/`_FakeOrig` in `test_validate_service.py` and `test_worker_helpers.py`) into shared fakes.
+- `tests/unit/test_validate_service.py`, `tests/unit/test_worker_helpers.py` — updated to import `FakeDiag`/`FakeOrig` from `tests/utils.py` instead of local duplicates.
+
 ## Change Log
 
 - 2026-06-11: Implemented Story 4.2 (AC1-3) — `imap_use_ssl=False` startup warning, `expiry_at` ISO parsing fix, and Phase 3c env_fingerprint backfill. Status → review.
+- 2026-06-11: Code review — fixed Phase 3c crash on malformed `measurement_timestamp` (unguarded `ValueError` in `_extract_measurement_timestamp`), fixed hardcoded `extra={"imap_use_ssl": False}` literal in `config.py` to reference `self.imap_use_ssl`, and documented bundled Story 4.1 review follow-ups (above). Status → done.

@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: '2026-06-02T09:31:53+03:00'
-last_updated: '2026-06-11T18:10:00+03:00'
+last_updated: '2026-06-11T19:00:00+03:00'
 project: Apollo
 project_key: NOKEY
 tracking_system: file-system
@@ -61,7 +61,7 @@ development_status:
   epic-3-retrospective: done
   epic-4: in-progress
   4-1-worker-resilience-and-e2e-repair: done
-  4-2-operational-hardening: review
+  4-2-operational-hardening: done
   4-3-domain-vocabulary-formalization: backlog
   4-4-test-and-code-quality-cleanup: backlog
   4-5-operator-sop-documentation: backlog

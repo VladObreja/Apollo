@@ -52,7 +52,7 @@ class Settings(BaseSettings):
         if not self.imap_use_ssl:
             logger.warning(
                 "apollo.config: IMAP connection is unencrypted (imap_use_ssl=False)",
-                extra={"imap_use_ssl": False},
+                extra={"imap_use_ssl": self.imap_use_ssl},
             )
 
 

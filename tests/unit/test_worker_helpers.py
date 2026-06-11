@@ -67,3 +67,11 @@ class TestExtractMeasurementTimestamp:
             {"measurement_timestamp": "2026-06-06T10:00:00+00:00"}
         )
         assert result == datetime(2026, 6, 6, 10, 0, tzinfo=UTC)
+
+    def test_malformed_string_returns_none(self) -> None:
+        """A corrupted/unparseable timestamp must not raise — Phase 3c falls
+        back to FingerprintService.attach's own timestamp fallback instead."""
+        result = _extract_measurement_timestamp(
+            {"measurement_timestamp": "not-a-date"}
+        )
+        assert result is None
